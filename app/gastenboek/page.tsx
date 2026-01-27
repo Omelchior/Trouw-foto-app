@@ -5,6 +5,7 @@ import { MessageCircle, Loader2 } from "lucide-react"
 import { GuestbookForm } from "@/components/guestbook-form"
 import { GuestbookFeed } from "@/components/guestbook-feed"
 import { Navigation } from "@/components/navigation"
+import { AdminAccessButton } from "@/components/admin-access-button"
 import { createClient } from "@/lib/supabase/client"
 
 interface GuestbookEntry {
@@ -56,6 +57,11 @@ export default function GastenboekPage() {
 
   return (
     <main className="min-h-screen pb-20">
+      {/* Admin access button - top right */}
+      <div className="absolute top-4 right-4 z-10">
+        <AdminAccessButton />
+      </div>
+
       <div className="max-w-lg mx-auto px-4 py-8">
         {/* Header */}
         <header className="text-center mb-8">

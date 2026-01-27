@@ -3,10 +3,16 @@
 import { Heart } from "lucide-react"
 import { PhotoUpload } from "@/components/photo-upload"
 import { Navigation } from "@/components/navigation"
+import { AdminAccessButton } from "@/components/admin-access-button"
 
 export default function HomePage() {
   return (
     <main className="min-h-screen pb-20">
+      {/* Admin access button - top right */}
+      <div className="absolute top-4 right-4 z-10">
+        <AdminAccessButton />
+      </div>
+
       <div className="max-w-lg mx-auto px-4 py-8">
         {/* Header */}
         <header className="text-center mb-8">

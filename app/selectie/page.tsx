@@ -10,10 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface Photo {
   id: string
-  url: string
-  uploader_name: string
-  created_at: string
-  selected: boolean
+  storage_path: string
+  uploaded_by: string
+  uploaded_at: string
+  is_selected: boolean
+  url?: string // generated from storage_path
 }
 
 export default function SelectiePage() {
@@ -27,12 +28,17 @@ export default function SelectiePage() {
     const { data, error } = await supabase
       .from("photos")
       .select("*")
-      .order("created_at", { ascending: false })
+      .order("uploaded_at", { ascending: false })
 
     if (error) {
       console.error("Error fetching photos:", error)
     } else {
-      setPhotos(data || [])
+      // Generate public URLs from storage paths
+      const photosWithUrls = (data || []).map(photo => ({
+        ...photo,
+        url: supabase.storage.from("wedding-photos").getPublicUrl(photo.storage_path).data.publicUrl
+      }))
+      setPhotos(photosWithUrls)
     }
     setIsLoading(false)
   }
@@ -58,7 +64,7 @@ export default function SelectiePage() {
     }
   }, [])
 
-  const selectedPhotos = photos.filter(p => p.selected)
+  const selectedPhotos = photos.filter(p => p.is_selected)
   const displayPhotos = activeTab === "geselecteerd" ? selectedPhotos : photos
 
   return (

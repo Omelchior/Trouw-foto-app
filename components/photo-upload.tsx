@@ -85,9 +85,8 @@ export function PhotoUpload({ onUploadComplete }: PhotoUploadProps) {
         const { error: dbError } = await supabase
           .from("photos")
           .insert({
-            url: publicUrl,
             storage_path: fileName,
-            uploader_name: uploaderName.trim()
+            uploaded_by: uploaderName.trim()
           })
 
         if (dbError) throw dbError

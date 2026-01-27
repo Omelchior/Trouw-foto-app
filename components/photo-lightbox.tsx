@@ -7,10 +7,11 @@ import { cn } from "@/lib/utils"
 
 interface Photo {
   id: string
-  url: string
-  uploader_name: string
-  created_at: string
-  selected: boolean
+  storage_path: string
+  uploaded_by: string
+  uploaded_at: string
+  is_selected: boolean
+  url?: string
 }
 
 interface PhotoLightboxProps {
@@ -85,7 +86,7 @@ export function PhotoLightbox({ photo, photos, onClose, onNavigate }: PhotoLight
       <div className="max-w-full max-h-full p-4">
         <img
           src={photo.url || "/placeholder.svg"}
-          alt={`Foto van ${photo.uploader_name}`}
+          alt={`Foto van ${photo.uploaded_by}`}
           className="max-w-full max-h-[80vh] object-contain rounded-lg"
         />
       </div>
@@ -94,8 +95,8 @@ export function PhotoLightbox({ photo, photos, onClose, onNavigate }: PhotoLight
       <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-foreground/80 to-transparent">
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <div>
-            <p className="text-primary-foreground font-medium">{photo.uploader_name}</p>
-            {photo.selected && (
+            <p className="text-primary-foreground font-medium">{photo.uploaded_by}</p>
+            {photo.is_selected && (
               <span className="inline-flex items-center gap-1 text-sm text-accent">
                 <Heart className="w-3 h-3 fill-current" />
                 Geselecteerd

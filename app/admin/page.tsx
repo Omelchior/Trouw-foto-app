@@ -33,11 +33,11 @@ import {
 
 interface Photo {
   id: string
-  url: string
   storage_path: string
-  uploader_name: string
-  created_at: string
-  selected: boolean
+  uploaded_by: string
+  uploaded_at: string
+  is_selected: boolean
+  url?: string
 }
 
 interface GuestbookEntry {
@@ -78,12 +78,17 @@ export default function AdminPage() {
     const { data, error } = await supabase
       .from("photos")
       .select("*")
-      .order("created_at", { ascending: false })
+      .order("uploaded_at", { ascending: false })
 
     if (error) {
       console.error("Error fetching photos:", error)
     } else {
-      setPhotos(data || [])
+      // Generate public URLs from storage paths
+      const photosWithUrls = (data || []).map(photo => ({
+        ...photo,
+        url: supabase.storage.from("wedding-photos").getPublicUrl(photo.storage_path).data.publicUrl
+      }))
+      setPhotos(photosWithUrls)
     }
   }
 
@@ -176,7 +181,7 @@ export default function AdminPage() {
     
     const { error } = await supabase
       .from("photos")
-      .update({ selected })
+      .update({ is_selected: selected })
       .eq("id", id)
 
     if (error) {
@@ -194,7 +199,7 @@ export default function AdminPage() {
     
     const { error } = await supabase
       .from("photos")
-      .update({ selected: select })
+      .update({ is_selected: select })
       .in("id", Array.from(selectedIds))
 
     if (error) {
@@ -239,7 +244,7 @@ export default function AdminPage() {
     return null
   }
 
-  const selectedPhotos = photos.filter(p => p.selected)
+  const selectedPhotos = photos.filter(p => p.is_selected)
 
   return (
     <main className="min-h-screen pb-8">

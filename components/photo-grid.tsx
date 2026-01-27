@@ -7,10 +7,11 @@ import { cn } from "@/lib/utils"
 
 interface Photo {
   id: string
-  url: string
-  uploader_name: string
-  created_at: string
-  selected: boolean
+  storage_path: string
+  uploaded_by: string
+  uploaded_at: string
+  is_selected: boolean
+  url?: string
 }
 
 interface PhotoGridProps {
@@ -75,7 +76,7 @@ export function PhotoGrid({
         >
           <img
             src={photo.url || "/placeholder.svg"}
-            alt={`Foto van ${photo.uploader_name}`}
+            alt={`Foto van ${photo.uploaded_by}`}
             className="w-full h-full object-cover rounded-lg"
             loading="lazy"
           />
@@ -83,7 +84,7 @@ export function PhotoGrid({
           {/* Overlay with uploader name */}
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-foreground/60 to-transparent p-3 rounded-b-lg opacity-0 group-hover:opacity-100 transition-opacity">
             <p className="text-sm text-primary-foreground font-medium truncate">
-              {photo.uploader_name}
+              {photo.uploaded_by}
             </p>
           </div>
 
@@ -100,7 +101,7 @@ export function PhotoGrid({
           )}
 
           {/* Selected badge */}
-          {photo.selected && !selectionMode && (
+          {photo.is_selected && !selectionMode && (
             <div className="absolute top-2 left-2 px-2 py-1 bg-accent text-accent-foreground text-xs font-medium rounded-full flex items-center gap-1">
               <Heart className="w-3 h-3 fill-current" />
               Geselecteerd
@@ -118,7 +119,7 @@ export function PhotoGrid({
                   e.stopPropagation()
                   if (onToggleSelection) {
                     handleAction(photo.id, async () => {
-                      await onToggleSelection(photo.id, !photo.selected)
+                      await onToggleSelection(photo.id, !photo.is_selected)
                     })
                   }
                 }}
@@ -127,7 +128,7 @@ export function PhotoGrid({
                 {loadingStates[photo.id] ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  <Heart className={cn("w-4 h-4", photo.selected && "fill-current text-accent")} />
+                  <Heart className={cn("w-4 h-4", photo.is_selected && "fill-current text-accent")} />
                 )}
               </Button>
               <Button

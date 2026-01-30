@@ -2,13 +2,94 @@
 
 import { useState, useCallback } from "react"
 import { useDropzone } from "react-dropzone"
-import { Camera, Upload, X, Loader2, Check } from "lucide-react"
+import { Camera, Upload, X, Loader2, Check, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+const MAX_DIMENSION = 2400 // Max width/height after compression
+const COMPRESSION_QUALITY = 0.85
+
+// Compress image client-side for faster uploads
+async function compressImage(file: File): Promise<File> {
+  // Skip compression for small files or non-image types
+  if (file.size < 500 * 1024 || !file.type.startsWith("image/")) {
+    return file
+  }
+
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.crossOrigin = "anonymous"
+    
+    img.onload = () => {
+      let { width, height } = img
+      
+      // Calculate new dimensions
+      if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+        const ratio = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height)
+        width = Math.round(width * ratio)
+        height = Math.round(height * ratio)
+      }
+
+      const canvas = document.createElement("canvas")
+      canvas.width = width
+      canvas.height = height
+      
+      const ctx = canvas.getContext("2d")
+      if (!ctx) {
+        resolve(file) // Fallback to original
+        return
+      }
+
+      ctx.drawImage(img, 0, 0, width, height)
+      
+      canvas.toBlob(
+        (blob) => {
+          if (blob && blob.size < file.size) {
+            const compressedFile = new File([blob], file.name, {
+              type: "image/jpeg",
+              lastModified: Date.now(),
+            })
+            resolve(compressedFile)
+          } else {
+            resolve(file) // Use original if compression didn't help
+          }
+        },
+        "image/jpeg",
+        COMPRESSION_QUALITY
+      )
+    }
+
+    img.onerror = () => resolve(file) // Fallback to original on error
+    img.src = URL.createObjectURL(file)
+  })
+}
+
+// Retry wrapper for upload operations
+async function uploadWithRetry<T>(
+  operation: () => Promise<T>,
+  maxRetries = 3,
+  delayMs = 1000
+): Promise<T> {
+  let lastError: Error | null = null
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation()
+    } catch (error) {
+      lastError = error as Error
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, delayMs * attempt))
+      }
+    }
+  }
+  
+  throw lastError
+}
 
 interface PhotoUploadProps {
   onUploadComplete?: () => void
@@ -23,9 +104,30 @@ export function PhotoUpload({ onUploadComplete }: PhotoUploadProps) {
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const newFiles = acceptedFiles.slice(0, 10 - files.length)
-    setFiles((prev) => [...prev, ...newFiles])
+    
+    // Validate file sizes
+    const validFiles: File[] = []
+    const oversizedFiles: string[] = []
     
     newFiles.forEach((file) => {
+      if (file.size > MAX_FILE_SIZE) {
+        oversizedFiles.push(file.name)
+      } else {
+        validFiles.push(file)
+      }
+    })
+    
+    if (oversizedFiles.length > 0) {
+      toast.error(`${oversizedFiles.length} bestand(en) te groot (max 10MB)`, {
+        description: oversizedFiles.slice(0, 3).join(", ") + (oversizedFiles.length > 3 ? "..." : "")
+      })
+    }
+    
+    if (validFiles.length === 0) return
+    
+    setFiles((prev) => [...prev, ...validFiles])
+    
+    validFiles.forEach((file) => {
       const reader = new FileReader()
       reader.onload = () => {
         setPreviews((prev) => [...prev, reader.result as string])
@@ -63,42 +165,59 @@ export function PhotoUpload({ onUploadComplete }: PhotoUploadProps) {
     setUploadProgress(new Array(files.length).fill(0))
     const supabase = createClient()
 
+    let successCount = 0
+    let failCount = 0
+
     try {
       for (let i = 0; i < files.length; i++) {
-        const file = files[i]
-        const fileExt = file.name.split(".").pop()
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+        try {
+          // Compress image before upload
+          const compressedFile = await compressImage(files[i])
+          const fileExt = compressedFile.type === "image/jpeg" ? "jpg" : files[i].name.split(".").pop()
+          const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
 
-        // Upload to storage
-        const { error: uploadError } = await supabase.storage
-          .from("wedding-photos")
-          .upload(fileName, file)
+          // Upload to storage with retry
+          await uploadWithRetry(async () => {
+            const { error: uploadError } = await supabase.storage
+              .from("wedding-photos")
+              .upload(fileName, compressedFile)
 
-        if (uploadError) throw uploadError
-
-        // Get public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from("wedding-photos")
-          .getPublicUrl(fileName)
-
-        // Save to database
-        const { error: dbError } = await supabase
-          .from("photos")
-          .insert({
-            storage_path: fileName,
-            uploaded_by: uploaderName.trim()
+            if (uploadError) throw uploadError
           })
 
-        if (dbError) throw dbError
+          // Save to database with retry
+          await uploadWithRetry(async () => {
+            const { error: dbError } = await supabase
+              .from("photos")
+              .insert({
+                storage_path: fileName,
+                uploaded_by: uploaderName.trim()
+              })
 
-        setUploadProgress((prev) => {
-          const newProgress = [...prev]
-          newProgress[i] = 100
-          return newProgress
-        })
+            if (dbError) throw dbError
+          })
+
+          successCount++
+          setUploadProgress((prev) => {
+            const newProgress = [...prev]
+            newProgress[i] = 100
+            return newProgress
+          })
+        } catch (error) {
+          console.error(`Upload error for file ${i}:`, error)
+          failCount++
+        }
       }
 
-      toast.success(`${files.length} foto${files.length > 1 ? "'s" : ""} geupload!`)
+      if (successCount > 0) {
+        toast.success(`${successCount} foto${successCount > 1 ? "'s" : ""} geupload!`)
+      }
+      if (failCount > 0) {
+        toast.error(`${failCount} foto${failCount > 1 ? "'s" : ""} mislukt`, {
+          description: "Probeer deze opnieuw te uploaden"
+        })
+      }
+      
       setFiles([])
       setPreviews([])
       setUploaderName("")

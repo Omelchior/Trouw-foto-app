@@ -114,6 +114,36 @@ export default function AdminPage() {
     if (isAuthenticated) {
       fetchPhotos()
       fetchGuestbook()
+
+      // Set up realtime subscriptions for live updates
+      const supabase = createClient()
+      
+      const photosChannel = supabase
+        .channel("admin-photos-changes")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "photos" },
+          () => {
+            fetchPhotos()
+          }
+        )
+        .subscribe()
+
+      const guestbookChannel = supabase
+        .channel("admin-guestbook-changes")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "guestbook_entries" },
+          () => {
+            fetchGuestbook()
+          }
+        )
+        .subscribe()
+
+      return () => {
+        supabase.removeChannel(photosChannel)
+        supabase.removeChannel(guestbookChannel)
+      }
     }
   }, [isAuthenticated])
 

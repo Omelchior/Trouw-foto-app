@@ -11,7 +11,8 @@ import {
   Download,
   Trash2,
   CheckSquare,
-  Square
+  Square,
+  QrCode
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -292,10 +293,16 @@ export default function AdminPage() {
               </p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={handleLogout} className="gap-2 bg-transparent">
-            <LogOut className="w-4 h-4" />
-            Uitloggen
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => router.push("/admin/qr")} className="gap-2 bg-transparent">
+              <QrCode className="w-4 h-4" />
+              <span className="hidden sm:inline">QR-code</span>
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleLogout} className="gap-2 bg-transparent">
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Uitloggen</span>
+            </Button>
+          </div>
         </header>
 
         {/* Tabs */}

@@ -1,13 +1,20 @@
 "use client"
 
+import { Suspense } from "react"
 import { Heart } from "lucide-react"
 import { PhotoUpload } from "@/components/photo-upload"
 import { Navigation } from "@/components/navigation"
 import { AdminAccessButton } from "@/components/admin-access-button"
+import { AuthErrorHandler } from "@/components/auth-error-handler"
 
 export default function HomePage() {
   return (
     <main className="min-h-screen pb-20">
+      {/* Catch auth errors that land on root URL */}
+      <Suspense fallback={null}>
+        <AuthErrorHandler />
+      </Suspense>
+
       {/* Admin access button - top right */}
       <div className="absolute top-4 right-4 z-10">
         <AdminAccessButton />

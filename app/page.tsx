@@ -7,38 +7,38 @@ import { Navigation } from "@/components/navigation"
 import { AdminAccessButton } from "@/components/admin-access-button"
 import { AuthErrorHandler } from "@/components/auth-error-handler"
 import { WelcomeScreen } from "@/components/welcome-screen"
-import { getStoredToken, getStoredName, getGuestSession, type GuestSession } from "@/lib/guest"
+import { getGuestSession, type GuestSession } from "@/lib/guest"
+import { createClient } from "@/lib/supabase/client"
 
 export default function HomePage() {
   const [session, setSession] = useState<GuestSession | null | "loading">("loading")
 
   useEffect(() => {
-    const token = getStoredToken()
-    const name = getStoredName()
+    let active = true
 
-    if (!token || !name) {
-      setSession(null)
-      return
+    const load = async () => {
+      const s = await getGuestSession()
+      if (!active) return
+      setSession(s)
     }
 
-    // Verify session still exists in DB
-    getGuestSession().then((s) => {
-      if (s) {
-        setSession(s)
-      } else {
-        // Token in localStorage but not in DB — clear and show welcome
-        localStorage.removeItem("wedding_guest_token")
-        localStorage.removeItem("wedding_guest_name")
-        setSession(null)
-      }
+    load()
+
+    // Refresh on auth change (sign-in, token refresh, etc.)
+    const supabase = createClient()
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      load()
     })
+
+    return () => {
+      active = false
+      sub.subscription.unsubscribe()
+    }
   }, [])
 
-  const handleWelcomeComplete = (name: string) => {
-    // Reload session from DB after creation
-    getGuestSession().then((s) => {
-      setSession(s ?? { token: getStoredToken()!, name, is_privileged: false })
-    })
+  const handleWelcomeComplete = async () => {
+    const s = await getGuestSession()
+    setSession(s)
   }
 
   if (session === "loading") {
@@ -80,6 +80,7 @@ export default function HomePage() {
 
         <PhotoUpload
           guestName={session.name}
+          userId={session.user_id}
           isPrivileged={session.is_privileged}
           onUploadComplete={() => {}}
         />

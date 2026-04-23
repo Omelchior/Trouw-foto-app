@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
-import { getStoredName } from "@/lib/guest"
+import { getCurrentProfile } from "@/lib/guest"
 
 interface GuestbookFormProps {
   onSubmitSuccess?: () => void
@@ -19,10 +19,11 @@ export function GuestbookForm({ onSubmitSuccess }: GuestbookFormProps) {
   const [message, setMessage] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Pre-fill name from guest session
+  // Pre-fill name from current profile
   useEffect(() => {
-    const stored = getStoredName()
-    if (stored) setName(stored)
+    getCurrentProfile().then((p) => {
+      if (p?.name) setName(p.name)
+    })
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {

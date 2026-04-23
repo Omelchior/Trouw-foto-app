@@ -1,19 +1,19 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { useDropzone } from "react-dropzone"
-import { Camera, Upload, X, Loader2, Check, Heart } from "lucide-react"
+import { Camera, Upload, X, Loader2, Check, Heart, Target } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import {
-  getStoredToken,
-  getStoredName,
   getUploadCounts,
+  markChallengeCompleted,
+  getChallenge,
   MAX_UPLOADS,
   MAX_FOTOBOEK,
-  CHALLENGES,
   type UploadCounts,
 } from "@/lib/guest"
 
@@ -70,38 +70,34 @@ async function uploadWithRetry<T>(op: () => Promise<T>, retries = 3): Promise<T>
 
 interface PhotoUploadProps {
   onUploadComplete?: () => void
-  guestName?: string
+  guestName: string
+  userId: string
   isPrivileged?: boolean
 }
 
-// Step 1: choose photos + challenge
-// Step 2: pick which to put in fotoboek
-// Step 3: uploading
-// Step 4: done
-
 type Step = "choose" | "fotoboek" | "uploading" | "done"
 
-export function PhotoUpload({ onUploadComplete, guestName, isPrivileged }: PhotoUploadProps) {
+export function PhotoUpload({ onUploadComplete, guestName, userId, isPrivileged }: PhotoUploadProps) {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+
+  const challengeIdParam = searchParams.get("challenge")
+  const challengeId = challengeIdParam ? parseInt(challengeIdParam, 10) : null
+  const challenge = challengeId ? getChallenge(challengeId) : null
+
   const [files, setFiles] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
-  const [selectedChallenge, setSelectedChallenge] = useState<number | null>(null)
   const [fotoboekSelection, setFotoboekSelection] = useState<Set<number>>(new Set())
   const [step, setStep] = useState<Step>("choose")
   const [uploadProgress, setUploadProgress] = useState<number[]>([])
   const [counts, setCounts] = useState<UploadCounts>({ uploaded: 0, fotoboek: 0 })
 
-  const token = getStoredToken()
-  const name = guestName || getStoredName() || ""
-
   const uploadsLeft = isPrivileged ? 999 : Math.max(0, MAX_UPLOADS - counts.uploaded)
   const fotoboekLeft = Math.max(0, MAX_FOTOBOEK - counts.fotoboek)
 
-  // Load counts on mount
   useEffect(() => {
-    if (token) {
-      getUploadCounts(token).then(setCounts)
-    }
-  }, [token])
+    getUploadCounts(userId).then(setCounts)
+  }, [userId])
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const limit = Math.min(uploadsLeft, 10)
@@ -142,7 +138,6 @@ export function PhotoUpload({ onUploadComplete, guestName, isPrivileged }: Photo
     setFotoboekSelection(prev => {
       const next = new Set(prev)
       next.delete(index)
-      // Re-map indices above removed
       const remapped = new Set<number>()
       next.forEach(i => { if (i < index) remapped.add(i); else if (i > index) remapped.add(i - 1) })
       return remapped
@@ -172,7 +167,6 @@ export function PhotoUpload({ onUploadComplete, guestName, isPrivileged }: Photo
   }
 
   const handleUpload = async () => {
-    if (!token) { toast.error("Sessie verlopen, herlaad de pagina"); return }
     if (files.length === 0) { toast.error("Selecteer minimaal 1 foto"); return }
 
     setStep("uploading")
@@ -196,9 +190,9 @@ export function PhotoUpload({ onUploadComplete, guestName, isPrivileged }: Photo
         await uploadWithRetry(async () => {
           const { error } = await supabase.from("photos").insert({
             storage_path: fileName,
-            uploaded_by: name,
-            guest_token: token,
-            challenge_id: selectedChallenge,
+            uploaded_by: guestName,
+            user_id: userId,
+            challenge_id: challengeId,
             in_fotoboek: fotoboekSelection.has(i),
           })
           if (error) throw error
@@ -212,6 +206,15 @@ export function PhotoUpload({ onUploadComplete, guestName, isPrivileged }: Photo
       }
     }
 
+    // Mark challenge completed (once, if at least one upload succeeded)
+    if (success > 0 && challengeId) {
+      try {
+        await markChallengeCompleted(challengeId)
+      } catch (e) {
+        console.error("Mark challenge error", e)
+      }
+    }
+
     if (success > 0) {
       toast.success(`${success} foto${success > 1 ? "'s" : ""} geüpload! 🎉`)
     }
@@ -219,11 +222,8 @@ export function PhotoUpload({ onUploadComplete, guestName, isPrivileged }: Photo
       toast.error(`${fail} foto${fail > 1 ? "'s" : ""} mislukt`)
     }
 
-    // Refresh counts
-    if (token) {
-      const newCounts = await getUploadCounts(token)
-      setCounts(newCounts)
-    }
+    const newCounts = await getUploadCounts(userId)
+    setCounts(newCounts)
 
     setStep("done")
     onUploadComplete?.()
@@ -232,13 +232,15 @@ export function PhotoUpload({ onUploadComplete, guestName, isPrivileged }: Photo
   const reset = () => {
     setFiles([])
     setPreviews([])
-    setSelectedChallenge(null)
     setFotoboekSelection(new Set())
     setUploadProgress([])
     setStep("choose")
   }
 
-  // ── Done screen ──────────────────────────────────────────────────
+  const backToBingo = () => {
+    router.push("/bingo")
+  }
+
   if (step === "done") {
     return (
       <div className="text-center space-y-4 py-8">
@@ -247,19 +249,29 @@ export function PhotoUpload({ onUploadComplete, guestName, isPrivileged }: Photo
         </div>
         <div>
           <h2 className="font-serif text-xl font-bold mb-1">Geüpload!</h2>
-          <p className="text-muted-foreground text-sm">
-            {!isPrivileged && `Je hebt nog ${uploadsLeft === 999 ? "∞" : Math.max(0, MAX_UPLOADS - counts.uploaded)} upload${Math.max(0, MAX_UPLOADS - counts.uploaded) === 1 ? "" : "s"} over.`}
+          {challenge && (
+            <p className="text-sm text-primary font-medium">
+              Opdracht #{challenge.id} afgevinkt ✓
+            </p>
+          )}
+          <p className="text-muted-foreground text-sm mt-1">
+            {!isPrivileged && `Je hebt nog ${Math.max(0, MAX_UPLOADS - counts.uploaded)} upload${Math.max(0, MAX_UPLOADS - counts.uploaded) === 1 ? "" : "s"} over.`}
           </p>
         </div>
-        <Button onClick={reset} variant="outline" className="gap-2">
-          <Camera className="w-4 h-4" />
-          Nog meer foto's uploaden
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2 justify-center">
+          <Button onClick={reset} variant="outline" className="gap-2">
+            <Camera className="w-4 h-4" />
+            Nog meer uploaden
+          </Button>
+          <Button onClick={backToBingo} className="gap-2">
+            <Target className="w-4 h-4" />
+            Terug naar bingo
+          </Button>
+        </div>
       </div>
     )
   }
 
-  // ── Uploading screen ─────────────────────────────────────────────
   if (step === "uploading") {
     const done = uploadProgress.filter(p => p === 100).length
     return (
@@ -276,7 +288,6 @@ export function PhotoUpload({ onUploadComplete, guestName, isPrivileged }: Photo
     )
   }
 
-  // ── Fotoboek selection screen ────────────────────────────────────
   if (step === "fotoboek") {
     return (
       <div className="space-y-6">
@@ -329,14 +340,13 @@ export function PhotoUpload({ onUploadComplete, guestName, isPrivileged }: Photo
           </Button>
           <Button onClick={handleUpload} className="flex-1 gap-2">
             <Upload className="w-4 h-4" />
-            Uploaden ({fotoboekSelection.size} in fotoboek)
+            Uploaden
           </Button>
         </div>
       </div>
     )
   }
 
-  // ── Main choose screen ───────────────────────────────────────────
   if (!isPrivileged && uploadsLeft === 0) {
     return (
       <div className="text-center py-12 space-y-3">
@@ -353,7 +363,23 @@ export function PhotoUpload({ onUploadComplete, guestName, isPrivileged }: Photo
 
   return (
     <div className="space-y-6">
-      {/* Upload limit indicator */}
+      {/* Challenge indicator if one is selected */}
+      {challenge && (
+        <div className="rounded-lg bg-primary/10 border border-primary/20 p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold text-sm shrink-0">
+              {challenge.id}
+            </div>
+            <div className="flex-1">
+              <p className="text-xs text-primary font-medium uppercase tracking-wide mb-0.5">
+                Bingo-opdracht
+              </p>
+              <p className="text-sm text-foreground">{challenge.text}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {!isPrivileged && (
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Foto&apos;s geüpload</span>
@@ -364,29 +390,6 @@ export function PhotoUpload({ onUploadComplete, guestName, isPrivileged }: Photo
         </div>
       )}
 
-      {/* Challenges */}
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Kies een opdracht (optioneel)</p>
-        <div className="grid grid-cols-2 gap-2">
-          {CHALLENGES.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => setSelectedChallenge(selectedChallenge === c.id ? null : c.id)}
-              className={cn(
-                "flex items-center gap-2 px-3 py-2 rounded-lg border text-sm text-left transition-colors",
-                selectedChallenge === c.id
-                  ? "border-primary bg-primary/10 text-primary font-medium"
-                  : "border-border hover:border-primary/50"
-              )}
-            >
-              <span className="text-lg">{c.emoji}</span>
-              <span className="leading-tight">{c.text}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Drop zone */}
       <div
         {...getRootProps()}
         className={cn(
@@ -402,7 +405,7 @@ export function PhotoUpload({ onUploadComplete, guestName, isPrivileged }: Photo
               <Upload className="w-7 h-7 text-muted-foreground" />
             </div>
             <div>
-              <p className="font-medium">Sleep foto's hierheen</p>
+              <p className="font-medium">Sleep foto&apos;s hierheen</p>
               <p className="text-sm text-muted-foreground">of gebruik een van de opties</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">

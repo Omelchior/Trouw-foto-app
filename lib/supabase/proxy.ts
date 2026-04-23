@@ -2,12 +2,8 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  })
+  let supabaseResponse = NextResponse.next({ request })
 
-  // With Fluid compute, don't put this client in a global environment
-  // variable. Always create a new one on each request.
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -20,9 +16,7 @@ export async function updateSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value),
           )
-          supabaseResponse = NextResponse.next({
-            request,
-          })
+          supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options),
           )
@@ -34,46 +28,73 @@ export async function updateSession(request: NextRequest) {
   // Do not run code between createServerClient and
   // supabase.auth.getUser(). A simple mistake could make it very hard to debug
   // issues with users being randomly logged out.
+  const { data: { user } } = await supabase.auth.getUser()
 
-  // IMPORTANT: If you remove getUser() and you use server-side rendering
-  // with the Supabase client, your users may be randomly logged out.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const path = request.nextUrl.pathname
 
-  // Protect admin routes (except login page)
-  if (
-    request.nextUrl.pathname.startsWith('/admin') &&
-    !request.nextUrl.pathname.startsWith('/admin/login') &&
-    !user
-  ) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/admin/login'
-    return NextResponse.redirect(url)
+  const isAdminRoute =
+    path.startsWith('/admin') && !path.startsWith('/admin/login')
+  const isCmRoute =
+    path.startsWith('/ceremoniemeester') && !path.startsWith('/ceremoniemeester/login')
+
+  // For role-gated routes: need a real (non-anonymous) user AND the right role.
+  if (isAdminRoute || isCmRoute) {
+    const isAnon = (user as { is_anonymous?: boolean } | null)?.is_anonymous === true
+
+    if (!user || isAnon) {
+      const url = request.nextUrl.clone()
+      url.pathname = isCmRoute ? '/ceremoniemeester/login' : '/admin/login'
+      return NextResponse.redirect(url)
+    }
+
+    // Fetch role from user_profiles
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    const role = profile?.role as string | undefined
+
+    if (isAdminRoute && role !== 'admin') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
+    if (isCmRoute && role !== 'ceremony_master' && role !== 'admin') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
   }
 
-  // Redirect logged-in users away from admin login
-  if (
-    request.nextUrl.pathname === '/admin/login' &&
-    user
-  ) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/admin'
-    return NextResponse.redirect(url)
+  // Redirect already-authenticated admins away from admin login
+  if (path === '/admin/login' && user) {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (profile?.role === 'admin') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/admin'
+      return NextResponse.redirect(url)
+    }
   }
 
-  // IMPORTANT: You *must* return the supabaseResponse object as it is.
-  // If you're creating a new response object with NextResponse.next() make sure to:
-  // 1. Pass the request in it, like so:
-  //    const myNewResponse = NextResponse.next({ request })
-  // 2. Copy over the cookies, like so:
-  //    myNewResponse.cookies.setAll(supabaseResponse.cookies.getAll())
-  // 3. Change the myNewResponse object to fit your needs, but avoid changing
-  //    the cookies!
-  // 4. Finally:
-  //    return myNewResponse
-  // If this is not done, you may be causing the browser and server to go out
-  // of sync and terminate the user's session prematurely!
+  // Redirect authenticated CMs away from their login
+  if (path === '/ceremoniemeester/login' && user) {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (profile?.role === 'ceremony_master' || profile?.role === 'admin') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/ceremoniemeester'
+      return NextResponse.redirect(url)
+    }
+  }
 
   return supabaseResponse
 }

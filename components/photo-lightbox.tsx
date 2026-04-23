@@ -25,9 +25,9 @@ export function PhotoLightbox({ photo, photos, onClose, onNavigate }: PhotoLight
   const currentIndex = photo ? photos.findIndex(p => p.id === photo.id) : -1
 
   useEffect(() => {
+    if (!photo) return
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!photo) return
-      
       if (e.key === "Escape") {
         onClose()
       } else if (e.key === "ArrowLeft" && currentIndex > 0) {

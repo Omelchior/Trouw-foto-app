@@ -12,7 +12,6 @@ import {
   getUploadCounts,
   markChallengeCompleted,
   getChallenge,
-  MAX_UPLOADS,
   MAX_FOTOBOEK,
   type UploadCounts,
 } from "@/lib/guest"
@@ -77,7 +76,7 @@ interface PhotoUploadProps {
 
 type Step = "choose" | "fotoboek" | "uploading" | "done"
 
-export function PhotoUpload({ onUploadComplete, guestName, userId, isPrivileged }: PhotoUploadProps) {
+export function PhotoUpload({ onUploadComplete, guestName, userId }: PhotoUploadProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
 
@@ -92,7 +91,6 @@ export function PhotoUpload({ onUploadComplete, guestName, userId, isPrivileged 
   const [uploadProgress, setUploadProgress] = useState<number[]>([])
   const [counts, setCounts] = useState<UploadCounts>({ uploaded: 0, fotoboek: 0 })
 
-  const uploadsLeft = isPrivileged ? 999 : Math.max(0, MAX_UPLOADS - counts.uploaded)
   const fotoboekLeft = Math.max(0, MAX_FOTOBOEK - counts.fotoboek)
 
   useEffect(() => {
@@ -100,19 +98,16 @@ export function PhotoUpload({ onUploadComplete, guestName, userId, isPrivileged 
   }, [userId])
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    const limit = Math.min(uploadsLeft, 10)
-    const newFiles = acceptedFiles.slice(0, limit - files.length)
-
     const validFiles: File[] = []
     const oversized: string[] = []
 
-    newFiles.forEach((f) => {
+    acceptedFiles.forEach((f) => {
       if (f.size > MAX_FILE_SIZE) oversized.push(f.name)
       else validFiles.push(f)
     })
 
     if (oversized.length > 0) {
-      toast.error(`${oversized.length} bestand(en) te groot (max 10MB)`)
+      toast.error(`${oversized.length} bestand(en) te groot (max 10MB per foto)`)
     }
     if (validFiles.length === 0) return
 
@@ -122,12 +117,11 @@ export function PhotoUpload({ onUploadComplete, guestName, userId, isPrivileged 
       reader.onload = () => setPreviews(prev => [...prev, reader.result as string])
       reader.readAsDataURL(file)
     })
-  }, [files.length, uploadsLeft])
+  }, [])
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
     accept: { "image/*": [".jpeg", ".jpg", ".png", ".webp", ".heic", ".heif"] },
-    maxFiles: uploadsLeft,
     noClick: true,
     noKeyboard: true,
   })
@@ -206,7 +200,6 @@ export function PhotoUpload({ onUploadComplete, guestName, userId, isPrivileged 
       }
     }
 
-    // Mark challenge completed (once, if at least one upload succeeded)
     if (success > 0 && challengeId) {
       try {
         await markChallengeCompleted(challengeId)
@@ -254,9 +247,6 @@ export function PhotoUpload({ onUploadComplete, guestName, userId, isPrivileged 
               Opdracht #{challenge.id} afgevinkt ✓
             </p>
           )}
-          <p className="text-muted-foreground text-sm mt-1">
-            {!isPrivileged && `Je hebt nog ${Math.max(0, MAX_UPLOADS - counts.uploaded)} upload${Math.max(0, MAX_UPLOADS - counts.uploaded) === 1 ? "" : "s"} over.`}
-          </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 justify-center">
           <Button onClick={reset} variant="outline" className="gap-2">
@@ -347,23 +337,8 @@ export function PhotoUpload({ onUploadComplete, guestName, userId, isPrivileged 
     )
   }
 
-  if (!isPrivileged && uploadsLeft === 0) {
-    return (
-      <div className="text-center py-12 space-y-3">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-secondary mb-2">
-          <Check className="w-8 h-8 text-muted-foreground" />
-        </div>
-        <h2 className="font-serif text-xl font-bold">Je hebt {MAX_UPLOADS} foto&apos;s geüpload</h2>
-        <p className="text-muted-foreground text-sm">
-          Super bedankt! Kijk bij het gastenboek om ook nog een berichtje achter te laten.
-        </p>
-      </div>
-    )
-  }
-
   return (
     <div className="space-y-6">
-      {/* Challenge indicator if one is selected */}
       {challenge && (
         <div className="rounded-lg bg-primary/10 border border-primary/20 p-4">
           <div className="flex items-start gap-3">
@@ -377,16 +352,6 @@ export function PhotoUpload({ onUploadComplete, guestName, userId, isPrivileged 
               <p className="text-sm text-foreground">{challenge.text}</p>
             </div>
           </div>
-        </div>
-      )}
-
-      {!isPrivileged && (
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">Foto&apos;s geüpload</span>
-          <span className="font-medium">
-            {counts.uploaded} / {MAX_UPLOADS}
-            <span className="text-muted-foreground ml-1">({uploadsLeft} over)</span>
-          </span>
         </div>
       )}
 
@@ -452,14 +417,12 @@ export function PhotoUpload({ onUploadComplete, guestName, userId, isPrivileged 
                   </button>
                 </div>
               ))}
-              {files.length < uploadsLeft && (
-                <button
-                  onClick={open}
-                  className="aspect-square border-2 border-dashed border-border rounded-lg flex items-center justify-center hover:border-primary hover:bg-primary/5 transition-colors"
-                >
-                  <Upload className="w-5 h-5 text-muted-foreground" />
-                </button>
-              )}
+              <button
+                onClick={open}
+                className="aspect-square border-2 border-dashed border-border rounded-lg flex items-center justify-center hover:border-primary hover:bg-primary/5 transition-colors"
+              >
+                <Upload className="w-5 h-5 text-muted-foreground" />
+              </button>
             </div>
             <p className="text-sm text-muted-foreground">
               {files.length} foto{files.length === 1 ? "" : "'s"} geselecteerd

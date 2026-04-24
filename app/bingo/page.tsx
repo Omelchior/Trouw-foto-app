@@ -4,42 +4,92 @@ import { useEffect, useState } from "react"
 import { Target, Heart, Loader2 } from "lucide-react"
 import { Navigation } from "@/components/navigation"
 import { AdminAccessButton } from "@/components/admin-access-button"
-import { BingoBoard } from "@/components/bingo-board"
+import { BingoBoard, type BingoPhoto } from "@/components/bingo-board"
 import { WelcomeScreen } from "@/components/welcome-screen"
 import { getGuestSession, CHALLENGES, type GuestSession } from "@/lib/guest"
 import { createClient } from "@/lib/supabase/client"
 
 export default function BingoPage() {
   const [session, setSession] = useState<GuestSession | null | "loading">("loading")
+  const [photosByChallenge, setPhotosByChallenge] = useState<Record<number, BingoPhoto>>({})
+
+  const loadSessionAndPhotos = async () => {
+    const s = await getGuestSession()
+    if (!s) {
+      setSession(null)
+      return
+    }
+    setSession(s)
+
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from("photos")
+      .select("id, storage_path, uploaded_by, uploaded_at, is_selected, challenge_id")
+      .eq("user_id", s.user_id)
+      .not("challenge_id", "is", null)
+      .order("uploaded_at", { ascending: false })
+
+    if (error) {
+      console.error("Error loading own photos:", error)
+      setPhotosByChallenge({})
+      return
+    }
+
+    const map: Record<number, BingoPhoto> = {}
+    for (const p of data || []) {
+      const cid = p.challenge_id as number | null
+      if (cid == null) continue
+      // Only keep the most recent photo per challenge
+      if (!map[cid]) {
+        map[cid] = {
+          id: p.id,
+          storage_path: p.storage_path,
+          uploaded_by: p.uploaded_by,
+          uploaded_at: p.uploaded_at,
+          is_selected: p.is_selected,
+          url: supabase.storage.from("wedding-photos").getPublicUrl(p.storage_path).data.publicUrl,
+        }
+      }
+    }
+    setPhotosByChallenge(map)
+  }
 
   useEffect(() => {
     let active = true
 
-    const load = async () => {
-      const s = await getGuestSession()
+    const run = async () => {
       if (!active) return
-      setSession(s)
+      await loadSessionAndPhotos()
     }
 
-    load()
+    run()
 
     const supabase = createClient()
-    const { data: sub } = supabase.auth.onAuthStateChange(() => load())
+    const { data: sub } = supabase.auth.onAuthStateChange(() => run())
 
-    // Realtime: when user_profiles updates (challenge completed), reload
-    const channel = supabase
+    const profileChannel = supabase
       .channel("bingo-profile-changes")
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "user_profiles" },
-        () => load()
+        () => run()
+      )
+      .subscribe()
+
+    const photosChannel = supabase
+      .channel("bingo-photos-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "photos" },
+        () => run()
       )
       .subscribe()
 
     return () => {
       active = false
       sub.subscription.unsubscribe()
-      supabase.removeChannel(channel)
+      supabase.removeChannel(profileChannel)
+      supabase.removeChannel(photosChannel)
     }
   }, [])
 
@@ -73,7 +123,8 @@ export default function BingoPage() {
             Foto-bingo
           </h1>
           <p className="text-muted-foreground text-sm">
-            Maak foto&apos;s om mensen te verbinden. Tik een vakje aan om aan die opdracht te werken.
+            Maak foto&apos;s om mensen te verbinden. Tik een leeg vakje aan om eraan te werken;
+            tik een voltooid vakje aan om je foto te bekijken.
           </p>
           <div className="mt-3 inline-flex items-center gap-2 text-sm">
             <Heart className="w-4 h-4 text-primary fill-primary/30" />
@@ -81,11 +132,10 @@ export default function BingoPage() {
           </div>
         </header>
 
-        <BingoBoard completed={session.completed_challenges} />
-
-        <p className="text-xs text-center text-muted-foreground mt-6">
-          Klik op een vakje om er een foto voor te uploaden.
-        </p>
+        <BingoBoard
+          completed={session.completed_challenges}
+          photosByChallenge={photosByChallenge}
+        />
       </div>
 
       <Navigation />

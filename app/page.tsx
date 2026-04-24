@@ -72,16 +72,13 @@ export default function HomePage() {
             Hé {session.name.split(" ")[0]}! 👋
           </h1>
           <p className="text-muted-foreground">
-            {session.is_privileged
-              ? "Je hebt onbeperkte upload-toegang 🌟"
-              : "Deel de mooiste momenten van deze dag"}
+            Deel de mooiste momenten van deze dag
           </p>
         </header>
 
         <PhotoUpload
           guestName={session.name}
           userId={session.user_id}
-          isPrivileged={session.is_privileged}
           onUploadComplete={() => {}}
         />
       </div>

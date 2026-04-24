@@ -1,6 +1,5 @@
 import { createClient } from './supabase/client'
 
-export const MAX_UPLOADS = 10
 export const MAX_FOTOBOEK = 5
 export const BINGO_SIZE = 5
 

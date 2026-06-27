@@ -3,12 +3,24 @@ import { createClient } from './supabase/client'
 export const MAX_FOTOBOEK = 5
 export const BINGO_SIZE = 5
 
-export type Role = 'guest' | 'vip' | 'ceremony_master' | 'admin'
+// Behind-the-scenes login identity. Guests never see or type this — picking
+// their name maps to <slug>@<domain> with a deterministic password, so the
+// same guest always returns to the same account (also on another device).
+const GUEST_EMAIL_DOMAIN = 'gast.trouwfoto.nl'
+function guestEmail(slug: string): string {
+  return `${slug}@${GUEST_EMAIL_DOMAIN}`
+}
+function guestPassword(slug: string): string {
+  return `gast-${slug}-Trouw!2026`
+}
+
+export type Role = 'guest' | 'vip' | 'fotograaf' | 'ceremony_master' | 'admin'
 
 export interface UserProfile {
   user_id: string
   name: string
   role: Role
+  label: string | null
   email: string | null
   completed_challenges: number[]
 }
@@ -16,6 +28,14 @@ export interface UserProfile {
 export interface GuestSession extends UserProfile {
   token: string        // alias for user_id (backwards-compat)
   is_privileged: boolean
+}
+
+/** A single entry in the public guest picker. */
+export interface GuestListEntry {
+  slug: string
+  name: string
+  label: string | null
+  role: Role
 }
 
 export interface UploadCounts {
@@ -61,8 +81,23 @@ export function getChallenge(id: number): Challenge | undefined {
   return CHALLENGES.find(c => c.id === id)
 }
 
+/** Beheer-capable roles (mogen het beheer in, achter het wachtwoord). */
 export function isPrivilegedRole(role: Role): boolean {
-  return role !== 'guest'
+  return role === 'ceremony_master' || role === 'admin'
+}
+
+/**
+ * Fetch the public guest directory for the name picker.
+ */
+export async function getGuestList(): Promise<GuestListEntry[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('guests')
+    .select('slug, name, label, role')
+    .order('name')
+
+  if (error || !data) return []
+  return data as GuestListEntry[]
 }
 
 /**
@@ -76,7 +111,7 @@ export async function getCurrentProfile(): Promise<UserProfile | null> {
 
   const { data, error } = await supabase
     .from('user_profiles')
-    .select('user_id, name, role, email, completed_challenges')
+    .select('user_id, name, role, label, email, completed_challenges')
     .eq('user_id', user.id)
     .maybeSingle()
 
@@ -99,56 +134,39 @@ export async function getGuestSession(): Promise<GuestSession | null> {
 }
 
 /**
- * Sign in anonymously with Supabase, then insert a user_profiles row with the given name.
- * If the user is already signed in (anonymous or email), just ensures the profile exists.
+ * Log in as a guest from the closed list, identified by their slug.
+ * First login creates the behind-the-scenes account; later logins reuse it.
+ * The role/label are assigned authoritatively server-side via claim_guest_profile.
  */
-export async function createGuestSession(name: string): Promise<GuestSession> {
+export async function loginAsGuest(slug: string): Promise<GuestSession> {
   const supabase = createClient()
-  const trimmed = name.trim()
-  if (!trimmed) throw new Error('Naam is verplicht')
+  const email = guestEmail(slug)
+  const password = guestPassword(slug)
 
-  // If already signed in, reuse the user.
-  let { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    const { data, error } = await supabase.auth.signInAnonymously()
-    if (error) throw error
-    user = data.user
+  // Try to sign in; if the account does not exist yet, create it (first login).
+  const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+  if (signInError) {
+    const { error: signUpError } = await supabase.auth.signUp({ email, password })
+    if (signUpError) {
+      // Possibly created concurrently from another device — try signing in once more.
+      const retry = await supabase.auth.signInWithPassword({ email, password })
+      if (retry.error) throw signUpError
+    }
   }
 
-  if (!user) throw new Error('Kon geen sessie maken')
+  // Assign name/role/label from the authoritative guests table (security definer).
+  const { error: claimError } = await supabase.rpc('claim_guest_profile', { p_slug: slug })
+  if (claimError) throw claimError
 
-  // Upsert profile row
-  const { error: profileError } = await supabase
-    .from('user_profiles')
-    .upsert(
-      { user_id: user.id, name: trimmed },
-      { onConflict: 'user_id' }
-    )
-
-  if (profileError) throw profileError
-
-  const profile = await getCurrentProfile()
-  if (!profile) throw new Error('Profiel niet gevonden na aanmaken')
-
-  return {
-    ...profile,
-    token: profile.user_id,
-    is_privileged: isPrivilegedRole(profile.role),
-  }
+  const session = await getGuestSession()
+  if (!session) throw new Error('Profiel niet gevonden na inloggen')
+  return session
 }
 
-/** Update the current user's display name */
+/** Update the current user's display name (via RPC; direct writes are locked down). */
 export async function updateProfileName(name: string): Promise<void> {
   const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Niet ingelogd')
-
-  const { error } = await supabase
-    .from('user_profiles')
-    .update({ name: name.trim() })
-    .eq('user_id', user.id)
-
+  const { error } = await supabase.rpc('update_my_name', { p_name: name })
   if (error) throw error
 }
 

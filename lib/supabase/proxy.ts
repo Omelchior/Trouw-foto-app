@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { beheerToken, BEHEER_COOKIE } from '@/lib/beheer'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -37,17 +38,30 @@ export async function updateSession(request: NextRequest) {
   const isCmRoute =
     path.startsWith('/ceremoniemeester') && !path.startsWith('/ceremoniemeester/login')
 
-  // For role-gated routes: need a real (non-anonymous) user AND the right role.
+  const redirectTo = (pathname: string) => {
+    const url = request.nextUrl.clone()
+    url.pathname = pathname
+    return NextResponse.redirect(url)
+  }
+
+  // Has the visitor unlocked the beheer area with the shared password?
+  let beheerValid = false
+  const beheerCookie = request.cookies.get(BEHEER_COOKIE)?.value
+  const beheerPassword = process.env.BEHEER_WACHTWOORD
+  if (beheerCookie && beheerPassword) {
+    beheerValid = beheerCookie === (await beheerToken(beheerPassword))
+  }
+
+  // Role-gated routes: need a real (non-anonymous) user, the right role, AND
+  // the beheer password unlock.
   if (isAdminRoute || isCmRoute) {
     const isAnon = (user as { is_anonymous?: boolean } | null)?.is_anonymous === true
 
+    // Not logged in → pick your name on the homepage first.
     if (!user || isAnon) {
-      const url = request.nextUrl.clone()
-      url.pathname = isCmRoute ? '/ceremoniemeester/login' : '/admin/login'
-      return NextResponse.redirect(url)
+      return redirectTo('/')
     }
 
-    // Fetch role from user_profiles
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('role')
@@ -57,42 +71,37 @@ export async function updateSession(request: NextRequest) {
     const role = profile?.role as string | undefined
 
     if (isAdminRoute && role !== 'admin') {
-      const url = request.nextUrl.clone()
-      url.pathname = '/'
-      return NextResponse.redirect(url)
+      return redirectTo('/')
     }
     if (isCmRoute && role !== 'ceremony_master' && role !== 'admin') {
-      const url = request.nextUrl.clone()
-      url.pathname = '/'
-      return NextResponse.redirect(url)
+      return redirectTo('/')
+    }
+
+    // Right role but the beheer area is still locked → ask for the password.
+    if (!beheerValid) {
+      return redirectTo(isCmRoute ? '/ceremoniemeester/login' : '/admin/login')
     }
   }
 
-  // Redirect already-authenticated admins away from admin login
-  if (path === '/admin/login' && user) {
+  // Already unlocked? Skip the password page.
+  if (path === '/admin/login' && user && beheerValid) {
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('role')
       .eq('user_id', user.id)
       .maybeSingle()
     if (profile?.role === 'admin') {
-      const url = request.nextUrl.clone()
-      url.pathname = '/admin'
-      return NextResponse.redirect(url)
+      return redirectTo('/admin')
     }
   }
-
-  // Redirect authenticated CMs away from their login
-  if (path === '/ceremoniemeester/login' && user) {
+  if (path === '/ceremoniemeester/login' && user && beheerValid) {
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('role')
       .eq('user_id', user.id)
       .maybeSingle()
     if (profile?.role === 'ceremony_master' || profile?.role === 'admin') {
-      const url = request.nextUrl.clone()
-      url.pathname = '/ceremoniemeester'
-      return NextResponse.redirect(url)
+      return redirectTo('/ceremoniemeester')
     }
   }
 

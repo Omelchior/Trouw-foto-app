@@ -1,12 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { Heart, Loader2, ChevronRight } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Heart, Loader2, Search, Crown } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { createGuestSession } from "@/lib/guest"
+import { loginAsGuest, getGuestList, type GuestListEntry } from "@/lib/guest"
 import { toast } from "sonner"
 
 interface WelcomeScreenProps {
@@ -14,32 +13,38 @@ interface WelcomeScreenProps {
 }
 
 export function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
-  const [name, setName] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
+  const [guests, setGuests] = useState<GuestListEntry[] | "loading">("loading")
+  const [query, setQuery] = useState("")
+  const [loggingIn, setLoggingIn] = useState<string | null>(null)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!name.trim()) {
-      toast.error("Vul je naam in")
-      return
-    }
+  useEffect(() => {
+    getGuestList().then((list) => setGuests(list))
+  }, [])
 
-    setIsLoading(true)
+  const filtered = useMemo(() => {
+    if (guests === "loading") return []
+    const q = query.trim().toLowerCase()
+    if (!q) return guests
+    return guests.filter((g) => g.name.toLowerCase().includes(q))
+  }, [guests, query])
+
+  const handlePick = async (guest: GuestListEntry) => {
+    if (loggingIn) return
+    setLoggingIn(guest.slug)
     try {
-      const session = await createGuestSession(name)
+      const session = await loginAsGuest(guest.slug)
       onComplete(session.name)
     } catch (err) {
       console.error(err)
-      toast.error("Er ging iets mis. Probeer opnieuw.")
-    } finally {
-      setIsLoading(false)
+      toast.error("Inloggen mislukt. Probeer het opnieuw.")
+      setLoggingIn(null)
     }
   }
 
   return (
     <div className="fixed inset-0 bg-background z-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
+      <div className="w-full max-w-sm flex flex-col max-h-[90vh]">
+        <div className="text-center mb-6 shrink-0">
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-4">
             <Heart className="w-10 h-10 text-primary fill-primary/30" />
           </div>
@@ -48,57 +53,70 @@ export function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
           </h1>
           <p className="text-muted-foreground">
             Welkom op onze bruiloft! 🎊<br />
-            Help ons de mooiste momenten vast te leggen.
+            Kies je naam om in te loggen.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="welcome-name" className="text-base font-medium">
-              Wie ben jij?
-            </Label>
+        <div className="space-y-2 shrink-0">
+          <Label htmlFor="welcome-search" className="text-base font-medium">
+            Wie ben jij?
+          </Label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              id="welcome-name"
-              placeholder="Bijv. Jan & Marieke"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="h-12 text-base"
+              id="welcome-search"
+              placeholder="Zoek je naam..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="pl-10 h-12 text-base"
               autoFocus
-              autoComplete="name"
+              autoComplete="off"
             />
           </div>
+        </div>
 
-          <Button
-            type="submit"
-            disabled={isLoading || !name.trim()}
-            className="w-full h-12 text-base gap-2 mt-2"
-          >
-            {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <>
-                Laten we beginnen
-                <ChevronRight className="w-4 h-4" />
-              </>
-            )}
-          </Button>
-        </form>
+        <div className="mt-3 flex-1 overflow-y-auto rounded-lg border border-border divide-y divide-border">
+          {guests === "loading" ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="w-5 h-5 animate-spin text-primary" />
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="py-10 text-center text-sm text-muted-foreground px-4">
+              Geen naam gevonden. Staat je naam er niet bij? Vraag het bruidspaar.
+            </div>
+          ) : (
+            filtered.map((guest) => (
+              <button
+                key={guest.slug}
+                type="button"
+                onClick={() => handlePick(guest)}
+                disabled={!!loggingIn}
+                className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left hover:bg-muted/60 transition-colors disabled:opacity-50"
+              >
+                <span className="flex items-center gap-2 font-medium">
+                  {guest.name}
+                  {guest.label && (
+                    <span className="inline-flex items-center gap-1 text-xs text-primary">
+                      <Crown className="w-3 h-3" />
+                      {guest.label}
+                    </span>
+                  )}
+                </span>
+                {loggingIn === guest.slug && (
+                  <Loader2 className="w-4 h-4 animate-spin text-primary shrink-0" />
+                )}
+              </button>
+            ))
+          )}
+        </div>
 
-        <div className="text-center mt-6 space-y-2">
+        <div className="text-center mt-5 shrink-0">
           <Link
-            href="/login"
+            href="/rsvp"
             className="text-sm text-muted-foreground underline underline-offset-2 inline-block"
           >
-            Al eens eerder ingelogd? Log in met je email
+            Aanmelden voor de bruiloft →
           </Link>
-          <div>
-            <Link
-              href="/rsvp"
-              className="text-sm text-muted-foreground underline underline-offset-2 inline-block"
-            >
-              Aanmelden voor de bruiloft →
-            </Link>
-          </div>
         </div>
       </div>
     </div>

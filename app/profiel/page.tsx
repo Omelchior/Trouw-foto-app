@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { User, Mail, CheckCircle2, Loader2, LogOut, ChevronLeft, Save } from "lucide-react"
+import { User, Loader2, LogOut, ChevronLeft, Save, Crown, Smartphone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,11 +22,6 @@ export default function ProfielPage() {
   const [profile, setProfile] = useState<UserProfile | null | "loading">("loading")
   const [editName, setEditName] = useState("")
   const [savingName, setSavingName] = useState(false)
-
-  const [showEmailField, setShowEmailField] = useState(false)
-  const [email, setEmail] = useState("")
-  const [emailSending, setEmailSending] = useState(false)
-  const [emailSent, setEmailSent] = useState(false)
 
   useEffect(() => {
     getCurrentProfile().then((p) => {
@@ -50,31 +45,6 @@ export default function ProfielPage() {
       toast.error("Opslaan mislukt")
     } finally {
       setSavingName(false)
-    }
-  }
-
-  const handleAddEmail = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!email.trim()) {
-      toast.error("Vul een email in")
-      return
-    }
-
-    setEmailSending(true)
-    const supabase = createClient()
-    try {
-      const { error } = await supabase.auth.updateUser({ email: email.trim() })
-      if (error) {
-        toast.error(error.message)
-        return
-      }
-      setEmailSent(true)
-      toast.success("Bevestigingsmail verstuurd")
-    } catch (err) {
-      console.error(err)
-      toast.error("Er ging iets mis")
-    } finally {
-      setEmailSending(false)
     }
   }
 
@@ -105,8 +75,6 @@ export default function ProfielPage() {
     )
   }
 
-  const hasEmail = profile.email !== null && profile.email !== ""
-
   return (
     <main className="min-h-screen pb-24">
       <div className="max-w-lg mx-auto px-4 py-8 space-y-6">
@@ -129,6 +97,12 @@ export default function ProfielPage() {
           <p className="text-muted-foreground text-sm">
             Rol: <span className="font-medium text-foreground">{roleLabel(profile.role)}</span>
           </p>
+          {profile.label && (
+            <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+              <Crown className="w-3.5 h-3.5" />
+              {profile.label}
+            </span>
+          )}
         </header>
 
         {/* Naam */}
@@ -157,69 +131,21 @@ export default function ProfielPage() {
           </CardContent>
         </Card>
 
-        {/* Email voor cross-device */}
+        {/* Cross-device uitleg */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Email voor cross-device login</CardTitle>
+            <CardTitle className="text-lg">Inloggen op een ander apparaat</CardTitle>
             <CardDescription>
-              {hasEmail
-                ? "Je hebt een email gekoppeld — je kan op elk apparaat inloggen met deze email."
-                : "Koppel een email zodat je op een ander apparaat kunt inloggen met dezelfde gegevens. Optioneel."}
+              Dat hoef je niet apart te regelen — kies op elk apparaat gewoon
+              opnieuw je naam op de startpagina en je komt automatisch terug in
+              dit account, met je eigen foto&apos;s en bingo-voortgang.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {hasEmail ? (
-              <div className="flex items-center gap-2 text-sm">
-                <CheckCircle2 className="w-5 h-5 text-primary" />
-                <span className="font-medium">{profile.email}</span>
-              </div>
-            ) : emailSent ? (
-              <div className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
-                We hebben een bevestigingslink naar <strong className="text-foreground">{email}</strong> gestuurd.
-                Klik die link om de koppeling af te ronden.
-              </div>
-            ) : !showEmailField ? (
-              <Button
-                variant="outline"
-                onClick={() => setShowEmailField(true)}
-                className="gap-2"
-              >
-                <Mail className="w-4 h-4" />
-                Email koppelen
-              </Button>
-            ) : (
-              <form onSubmit={handleAddEmail} className="space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="profile-email">Je email</Label>
-                  <Input
-                    id="profile-email"
-                    type="email"
-                    placeholder="naam@voorbeeld.nl"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="h-11"
-                    autoFocus
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={emailSending} className="gap-2">
-                    {emailSending ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Mail className="w-4 h-4" />
-                    )}
-                    Verstuur bevestiging
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => setShowEmailField(false)}
-                  >
-                    Annuleer
-                  </Button>
-                </div>
-              </form>
-            )}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Smartphone className="w-5 h-5 text-primary" />
+              <span>Je naam is je login.</span>
+            </div>
           </CardContent>
         </Card>
 
@@ -247,6 +173,7 @@ function roleLabel(role: string): string {
   switch (role) {
     case "guest": return "Gast"
     case "vip": return "VIP-gast"
+    case "fotograaf": return "Fotograaf"
     case "ceremony_master": return "Ceremoniemeester"
     case "admin": return "Beheerder"
     default: return role

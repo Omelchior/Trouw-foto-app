@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
-import { getCurrentProfile, createGuestSession } from "@/lib/guest"
+import { getCurrentProfile } from "@/lib/guest"
 
 interface QaFormProps {
   onSubmitSuccess?: () => void
@@ -37,14 +37,12 @@ export function QaForm({ onSubmitSuccess }: QaFormProps) {
     const supabase = createClient()
 
     try {
-      // Ensure a session exists (anonymous) so user_id is available for insert
-      let { data: { user } } = await supabase.auth.getUser()
+      // The user is already logged in (picked their name on the start screen).
+      const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
-        await createGuestSession(name)
-        const resp = await supabase.auth.getUser()
-        user = resp.data.user
+        toast.error("Log eerst in via de startpagina")
+        return
       }
-      if (!user) throw new Error("Geen sessie")
 
       const { error } = await supabase.from("qa_questions").insert({
         user_id: user.id,

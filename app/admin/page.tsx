@@ -14,7 +14,6 @@ import {
   Square,
   QrCode,
   MessageCircleQuestion,
-  Users,
   Heart,
   ClipboardList,
   MonitorPlay,
@@ -55,14 +54,6 @@ interface GuestbookEntry {
   created_at: string
 }
 
-interface UserProfileRow {
-  user_id: string
-  name: string
-  role: "guest" | "vip" | "ceremony_master" | "admin"
-  email: string | null
-  created_at: string
-}
-
 export default function AdminPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
@@ -70,7 +61,6 @@ export default function AdminPage() {
   const [photos, setPhotos] = useState<Photo[]>([])
   const [guestbookEntries, setGuestbookEntries] = useState<GuestbookEntry[]>([])
   const [qaEntries, setQaEntries] = useState<QaEntry[]>([])
-  const [users, setUsers] = useState<UserProfileRow[]>([])
   const [lightboxPhoto, setLightboxPhoto] = useState<Photo | null>(null)
   const [activeTab, setActiveTab] = useState("guests")
   const [selectionMode, setSelectionMode] = useState(false)
@@ -139,19 +129,6 @@ export default function AdminPage() {
     }
   }
 
-  const fetchUsers = async () => {
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from("user_profiles")
-      .select("user_id, name, role, email, created_at")
-      .order("created_at", { ascending: false })
-    if (error) {
-      console.error(error)
-    } else {
-      setUsers((data || []) as UserProfileRow[])
-    }
-  }
-
   useEffect(() => {
     checkAuth()
   }, [checkAuth])
@@ -162,7 +139,6 @@ export default function AdminPage() {
     fetchPhotos()
     fetchGuestbook()
     fetchQa()
-    fetchUsers()
 
     const supabase = createClient()
 
@@ -181,16 +157,10 @@ export default function AdminPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "qa_questions" }, () => fetchQa())
       .subscribe()
 
-    const usersChannel = supabase
-      .channel("admin-users-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "user_profiles" }, () => fetchUsers())
-      .subscribe()
-
     return () => {
       supabase.removeChannel(photosChannel)
       supabase.removeChannel(guestbookChannel)
       supabase.removeChannel(qaChannel)
-      supabase.removeChannel(usersChannel)
     }
   }, [isAuthenticated])
 
@@ -290,18 +260,6 @@ export default function AdminPage() {
     })
   }
 
-  const handleRoleChange = async (userId: string, role: UserProfileRow["role"]) => {
-    const supabase = createClient()
-    const { error } = await supabase.from("user_profiles").update({ role }).eq("user_id", userId)
-    if (error) {
-      console.error(error)
-      toast.error("Rol aanpassen mislukt")
-    } else {
-      toast.success("Rol aangepast")
-      fetchUsers()
-    }
-  }
-
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -351,7 +309,7 @@ export default function AdminPage() {
         </header>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5 mb-6">
+          <TabsList className="grid w-full grid-cols-4 mb-6">
             <TabsTrigger value="guests" className="gap-2">
               <ClipboardList className="w-4 h-4" />
               <span className="hidden sm:inline">Gastenlijst</span>
@@ -370,11 +328,6 @@ export default function AdminPage() {
               <MessageCircleQuestion className="w-4 h-4" />
               <span className="hidden sm:inline">Vragen</span>
               <span>({openQaCount})</span>
-            </TabsTrigger>
-            <TabsTrigger value="users" className="gap-2">
-              <Users className="w-4 h-4" />
-              <span className="hidden sm:inline">Gebruikers</span>
-              <span>({users.length})</span>
             </TabsTrigger>
           </TabsList>
 
@@ -456,41 +409,6 @@ export default function AdminPage() {
             </div>
           </TabsContent>
 
-          <TabsContent value="users">
-            <p className="text-xs text-muted-foreground mb-3">
-              Dit zijn de gasten die al hebben ingelogd. Rollen kun je het beste in de{" "}
-              <span className="font-medium text-foreground">Gastenlijst</span>-tab beheren; een wijziging
-              hier geldt direct voor dit ingelogde account.
-            </p>
-            <div className="space-y-2">
-              {users.map((u) => (
-                <div
-                  key={u.user_id}
-                  className="flex items-center justify-between gap-3 border border-border rounded-lg p-3 bg-card"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium truncate">{u.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {u.email ?? <span className="italic">anoniem</span>}
-                    </p>
-                  </div>
-                  <select
-                    value={u.role}
-                    onChange={(e) => handleRoleChange(u.user_id, e.target.value as UserProfileRow["role"])}
-                    className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-                  >
-                    <option value="guest">Gast</option>
-                    <option value="vip">VIP</option>
-                    <option value="ceremony_master">Ceremoniemeester</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
-              ))}
-              {users.length === 0 && (
-                <p className="text-center text-muted-foreground py-12 text-sm">Nog geen gebruikers</p>
-              )}
-            </div>
-          </TabsContent>
         </Tabs>
       </div>
 

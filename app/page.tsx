@@ -1,7 +1,9 @@
 "use client"
 
 import { Suspense, useState, useEffect } from "react"
-import { Heart } from "lucide-react"
+import Link from "next/link"
+import { Heart, Shield } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { PhotoUpload } from "@/components/photo-upload"
 import { Navigation } from "@/components/navigation"
 import { AdminAccessButton } from "@/components/admin-access-button"
@@ -59,7 +61,20 @@ export default function HomePage() {
         <AuthErrorHandler />
       </Suspense>
 
-      <div className="absolute top-4 right-4 z-10">
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-1">
+        {session.is_privileged && (
+          <Link href={session.role === "admin" ? "/admin" : "/ceremoniemeester"}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Beheer"
+            >
+              <Shield className="w-4 h-4 mr-2" />
+              <span className="text-sm">Beheer</span>
+            </Button>
+          </Link>
+        )}
         <AdminAccessButton />
       </div>
 

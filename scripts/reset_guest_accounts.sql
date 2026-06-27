@@ -5,7 +5,11 @@
 --
 -- Draai dit in de Supabase SQL Editor wanneer je test-data wilt wissen.
 
-delete from auth.users where email like '%@gast.trouwfoto.nl';
+-- Synthetische gast-logins (<slug>@gast.trouwfoto.nl) EN oude anonieme accounts
+-- van het vorige login-systeem (die hebben geen e-mailadres).
+delete from auth.users
+where email like '%@gast.trouwfoto.nl'
+   or email is null;
 
 -- Gevolg (automatisch via foreign keys):
 --   * public.user_profiles  -> rijen verdwijnen (on delete cascade)

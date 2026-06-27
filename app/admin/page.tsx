@@ -16,9 +16,11 @@ import {
   MessageCircleQuestion,
   Users,
   Heart,
+  ClipboardList,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { GuestListManager } from "@/components/guest-list-manager"
 import { PhotoGrid } from "@/components/photo-grid"
 import { PhotoLightbox } from "@/components/photo-lightbox"
 import { GuestbookFeed } from "@/components/guestbook-feed"
@@ -69,7 +71,7 @@ export default function AdminPage() {
   const [qaEntries, setQaEntries] = useState<QaEntry[]>([])
   const [users, setUsers] = useState<UserProfileRow[]>([])
   const [lightboxPhoto, setLightboxPhoto] = useState<Photo | null>(null)
-  const [activeTab, setActiveTab] = useState("photos")
+  const [activeTab, setActiveTab] = useState("guests")
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -191,10 +193,11 @@ export default function AdminPage() {
     }
   }, [isAuthenticated])
 
-  const handleLogout = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push("/admin/login")
+  const handleLockBeheer = async () => {
+    await fetch("/api/beheer", { method: "DELETE" })
+    toast.success("Beheer vergrendeld")
+    router.push("/")
+    router.refresh()
   }
 
   const handleDeletePhoto = async (id: string) => {
@@ -335,15 +338,19 @@ export default function AdminPage() {
               <QrCode className="w-4 h-4" />
               <span className="hidden sm:inline">QR-code</span>
             </Button>
-            <Button variant="outline" size="sm" onClick={handleLogout} className="gap-2 bg-transparent">
+            <Button variant="outline" size="sm" onClick={handleLockBeheer} className="gap-2 bg-transparent">
               <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Uitloggen</span>
+              <span className="hidden sm:inline">Vergrendel beheer</span>
             </Button>
           </div>
         </header>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsList className="grid w-full grid-cols-5 mb-6">
+            <TabsTrigger value="guests" className="gap-2">
+              <ClipboardList className="w-4 h-4" />
+              <span className="hidden sm:inline">Gastenlijst</span>
+            </TabsTrigger>
             <TabsTrigger value="photos" className="gap-2">
               <Images className="w-4 h-4" />
               <span className="hidden sm:inline">Foto's</span>
@@ -365,6 +372,10 @@ export default function AdminPage() {
               <span>({users.length})</span>
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="guests">
+            <GuestListManager />
+          </TabsContent>
 
           <TabsContent value="photos">
             <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -442,8 +453,9 @@ export default function AdminPage() {
 
           <TabsContent value="users">
             <p className="text-xs text-muted-foreground mb-3">
-              Wijzig een gebruikers rol via het dropdown. Ceremoniemeester / admin accounts moeten eerst in Supabase
-              Dashboard met email+wachtwoord worden aangemaakt.
+              Dit zijn de gasten die al hebben ingelogd. Rollen kun je het beste in de{" "}
+              <span className="font-medium text-foreground">Gastenlijst</span>-tab beheren; een wijziging
+              hier geldt direct voor dit ingelogde account.
             </p>
             <div className="space-y-2">
               {users.map((u) => (

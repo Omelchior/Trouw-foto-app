@@ -1,6 +1,24 @@
 "use client"
 
-import { Info, Clock, MapPin, Shirt, Gift, Phone, BedDouble, UtensilsCrossed, Car, PartyPopper, TrainFront, Bird, Luggage, Wine, Sparkles, Ticket, Heart, Gem, Cake, Utensils, Music, Home } from "lucide-react"
+import { Info, Clock, MapPin, Shirt, Gift, Phone, BedDouble, UtensilsCrossed, Car, PartyPopper, TrainFront, Bird, Luggage, Wine, Sparkles, Ticket, Heart, Cake, Utensils, Music, Home } from "lucide-react"
+
+/** Twee trouwringen, in dezelfde lijnstijl als de lucide-iconen. */
+function Ringen({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <circle cx="9" cy="12" r="5.5" />
+      <circle cx="15" cy="12" r="5.5" />
+    </svg>
+  )
+}
 import { Navigation } from "@/components/navigation"
 import { AdminAccessButton } from "@/components/admin-access-button"
 import {
@@ -18,7 +36,7 @@ const DATUM = "Vrijdag 21 augustus 2026"
 
 const PROGRAMMA = [
   { tijd: "14:00", titel: "Aanvang", omschrijving: "Ontvangst op Mereveld", icon: Heart },
-  { tijd: "14:30", titel: "Ceremonie", omschrijving: "Het ja-woord", icon: Gem },
+  { tijd: "14:30", titel: "Ceremonie", omschrijving: "Het ja-woord", icon: Ringen },
   { tijd: "15:30", titel: "Taart", omschrijving: "Tijd voor iets zoets", icon: Cake },
   { tijd: "16:00", titel: "Borrel", omschrijving: "Proosten op het bruidspaar", icon: Wine },
   { tijd: "17:30", titel: "Diner", omschrijving: "Aan tafel", icon: Utensils },
@@ -195,12 +213,17 @@ export default function InfoPage() {
                   />
                 ))}
               </div>
-              <div className="relative z-0 -mt-2.5 flex justify-center">
+              {/* Onderste rij: middelste onderop, naar buiten toe telkens een laag erboven */}
+              <div className="relative z-0 -mt-4 flex justify-center">
                 {DRESSCODE.kleurenKlein.map((kleur, i) => (
                   <span
                     key={kleur}
-                    className="w-11 h-11 rounded-full shrink-0"
-                    style={{ backgroundColor: kleur, marginLeft: i > 0 ? -9 : 0 }}
+                    className="relative w-11 h-11 rounded-full shrink-0"
+                    style={{
+                      backgroundColor: kleur,
+                      marginLeft: i > 0 ? -9 : 0,
+                      zIndex: 1 + Math.abs(i - 2),
+                    }}
                   />
                 ))}
               </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { Info, Clock, MapPin, Shirt, Gift, Phone, BedDouble, UtensilsCrossed, Car, PartyPopper, TrainFront, Bird, Luggage, Wine, Sparkles, Ticket } from "lucide-react"
+import { Info, Clock, MapPin, Shirt, Gift, Phone, BedDouble, UtensilsCrossed, Car, PartyPopper, TrainFront, Bird, Luggage, Wine, Sparkles, Ticket, Heart, Gem, Cake, Utensils, Music, Home } from "lucide-react"
 import { Navigation } from "@/components/navigation"
 import { AdminAccessButton } from "@/components/admin-access-button"
 import {
@@ -17,13 +17,13 @@ import {
 const DATUM = "Vrijdag 21 augustus 2026"
 
 const PROGRAMMA = [
-  { tijd: "14:00", titel: "Aanvang", omschrijving: "Ontvangst op Mereveld" },
-  { tijd: "14:30", titel: "Ceremonie", omschrijving: "Het ja-woord" },
-  { tijd: "15:30", titel: "Taart", omschrijving: "Tijd voor iets zoets" },
-  { tijd: "16:00", titel: "Borrel", omschrijving: "Proosten op het bruidspaar" },
-  { tijd: "17:30", titel: "Diner", omschrijving: "Aan tafel" },
-  { tijd: "20:30", titel: "Feest", omschrijving: "Met de voeten van de vloer" },
-  { tijd: "00:30", titel: "Einde", omschrijving: "Wel thuis!" },
+  { tijd: "14:00", titel: "Aanvang", omschrijving: "Ontvangst op Mereveld", icon: Heart },
+  { tijd: "14:30", titel: "Ceremonie", omschrijving: "Het ja-woord", icon: Gem },
+  { tijd: "15:30", titel: "Taart", omschrijving: "Tijd voor iets zoets", icon: Cake },
+  { tijd: "16:00", titel: "Borrel", omschrijving: "Proosten op het bruidspaar", icon: Wine },
+  { tijd: "17:30", titel: "Diner", omschrijving: "Aan tafel", icon: Utensils },
+  { tijd: "20:30", titel: "Feest", omschrijving: "Met de voeten van de vloer", icon: Music },
+  { tijd: "00:30", titel: "Einde", omschrijving: "Wel thuis!", icon: Home },
 ]
 
 const AVONDGASTEN =
@@ -112,15 +112,24 @@ export default function InfoPage() {
             <CardDescription>Zo ziet de dag eruit</CardDescription>
           </CardHeader>
           <CardContent>
-            <ol className="relative border-l border-border ml-3 space-y-5">
-              {PROGRAMMA.map((item) => (
-                <li key={item.tijd} className="ml-5">
-                  <span className="absolute -left-[5px] mt-1.5 w-2.5 h-2.5 rounded-full bg-primary" />
-                  <p className="text-sm font-semibold text-primary">{item.tijd}</p>
-                  <p className="font-medium text-foreground">{item.titel}</p>
-                  <p className="text-sm text-muted-foreground">{item.omschrijving}</p>
-                </li>
-              ))}
+            <ol className="space-y-4">
+              {PROGRAMMA.map((item) => {
+                const Icon = item.icon
+                return (
+                  <li key={item.tijd} className="flex items-center gap-3">
+                    <p className="w-[72px] shrink-0 text-right text-sm font-semibold text-primary">
+                      {item.tijd} uur
+                    </p>
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <Icon className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium text-foreground">{item.titel}</p>
+                      <p className="text-sm text-muted-foreground">{item.omschrijving}</p>
+                    </div>
+                  </li>
+                )
+              })}
             </ol>
             <div className="mt-5 flex items-start gap-2 rounded-lg bg-muted p-3">
               <PartyPopper className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
@@ -173,29 +182,25 @@ export default function InfoPage() {
             {/* Grote cirkels overlappen richting het midden (middelste bovenop),
                 kleintjes sluiten aan en verschuilen zich half achter de grote rij */}
             <div className="pb-4">
-              <div className="relative z-10 flex justify-center items-end -space-x-4">
-                {DRESSCODE.kleuren.map((kleur, i) => {
-                  const maat = [56, 62, 68, 62, 56][i]
-                  return (
-                    <span
-                      key={kleur}
-                      className="relative rounded-full border-2 border-card shrink-0"
-                      style={{
-                        backgroundColor: kleur,
-                        width: maat,
-                        height: maat,
-                        zIndex: 30 - Math.abs(i - 2) * 10,
-                      }}
-                    />
-                  )
-                })}
-              </div>
-              <div className="relative z-0 -mt-4 flex justify-center translate-x-[10px]">
-                {DRESSCODE.kleurenKlein.map((kleur) => (
+              <div className="relative z-10 flex justify-center">
+                {DRESSCODE.kleuren.map((kleur, i) => (
                   <span
                     key={kleur}
-                    className="w-9 h-9 rounded-full shrink-0"
-                    style={{ backgroundColor: kleur }}
+                    className="relative w-[88px] h-[88px] rounded-full border-2 border-card shrink-0"
+                    style={{
+                      backgroundColor: kleur,
+                      marginLeft: i > 0 ? -42 : 0,
+                      zIndex: 30 - Math.abs(i - 2) * 10,
+                    }}
+                  />
+                ))}
+              </div>
+              <div className="relative z-0 -mt-2.5 flex justify-center">
+                {DRESSCODE.kleurenKlein.map((kleur, i) => (
+                  <span
+                    key={kleur}
+                    className="w-11 h-11 rounded-full shrink-0"
+                    style={{ backgroundColor: kleur, marginLeft: i > 0 ? -9 : 0 }}
                   />
                 ))}
               </div>

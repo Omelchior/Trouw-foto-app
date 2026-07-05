@@ -2,15 +2,13 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Target, Images, MessageCircleQuestion, BookHeart, CalendarCheck } from "lucide-react"
+import { Target, Images, Info } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navItems = [
   { href: "/bingo", label: "Bingo", icon: Target },
   { href: "/selectie", label: "Galerij", icon: Images },
-  { href: "/qa", label: "Vragen", icon: MessageCircleQuestion },
-  { href: "/gastenboek", label: "Boek", icon: BookHeart },
-  { href: "/rsvp", label: "Aanmelden", icon: CalendarCheck },
+  { href: "/info", label: "Info", icon: Info },
 ]
 
 export function Navigation() {

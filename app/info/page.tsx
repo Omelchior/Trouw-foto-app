@@ -1,6 +1,6 @@
 "use client"
 
-import { Info, Clock, MapPin, Shirt, Gift, Phone, BedDouble, UtensilsCrossed, Car, PartyPopper } from "lucide-react"
+import { Info, Clock, MapPin, Shirt, Gift, Phone, BedDouble, UtensilsCrossed, Car, PartyPopper, TrainFront } from "lucide-react"
 import { Navigation } from "@/components/navigation"
 import { AdminAccessButton } from "@/components/admin-access-button"
 import {
@@ -33,7 +33,8 @@ const LOCATIE = {
   naam: "Mereveld",
   adres: "Mereveldseweg 9, Utrecht",
   mapsUrl: "https://maps.google.com/?q=Mereveld,+Mereveldseweg+9,+Utrecht",
-  parkeren: "Er is voldoende parkeergelegenheid bij Mereveld.",
+  parkeren: "Parkeren is gratis — er is voldoende parkeergelegenheid bij Mereveld.",
+  ov: "Met het openbaar vervoer? Mereveld ligt op slechts 1 km (20 minuten lopen) van NS-station Utrecht Lunetten.",
 }
 
 const DRESSCODE = {
@@ -136,6 +137,10 @@ export default function InfoPage() {
             <div className="flex items-start gap-2 rounded-lg bg-muted p-3">
               <Car className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
               <p className="text-sm text-muted-foreground">{LOCATIE.parkeren}</p>
+            </div>
+            <div className="flex items-start gap-2 rounded-lg bg-muted p-3">
+              <TrainFront className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+              <p className="text-sm text-muted-foreground">{LOCATIE.ov}</p>
             </div>
           </CardContent>
         </Card>

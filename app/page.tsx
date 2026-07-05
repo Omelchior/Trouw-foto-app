@@ -89,8 +89,8 @@ export default function HomePage() {
         <AuthErrorHandler />
       </Suspense>
 
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-1">
-        {session.is_privileged && (
+      {session.is_privileged && (
+        <div className="absolute top-4 left-4 z-10">
           <Link href={session.role === "admin" ? "/admin" : "/ceremoniemeester"}>
             <Button
               variant="ghost"
@@ -102,7 +102,9 @@ export default function HomePage() {
               <span className="text-sm">Beheer</span>
             </Button>
           </Link>
-        )}
+        </div>
+      )}
+      <div className="absolute top-4 right-4 z-10">
         <AdminAccessButton />
       </div>
 

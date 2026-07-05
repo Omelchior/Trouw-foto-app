@@ -67,7 +67,7 @@ function LoginContent() {
         password,
       })
       if (error) {
-        toast.error("Inloggen mislukt — controleer email en wachtwoord")
+        toast.error("Inloggen mislukt. Controleer email en wachtwoord.")
         return
       }
       toast.success("Ingelogd")

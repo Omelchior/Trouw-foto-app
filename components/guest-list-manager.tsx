@@ -268,7 +268,7 @@ export function GuestListManager() {
       </div>
 
       <p className="text-xs text-muted-foreground mb-3">
-        {list.length} gasten op de lijst{query && ` — ${filtered.length} gevonden`}
+        {list.length} gasten op de lijst{query && ` (${filtered.length} gevonden)`}
       </p>
 
       {guests === "loading" ? (

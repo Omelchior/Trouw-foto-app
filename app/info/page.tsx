@@ -33,7 +33,7 @@ const LOCATIE = {
   naam: "Mereveld",
   adres: "Mereveldseweg 9, Utrecht",
   mapsUrl: "https://maps.google.com/?q=Mereveld,+Mereveldseweg+9,+Utrecht",
-  parkeren: "Parkeren is gratis — er is voldoende parkeergelegenheid bij Mereveld.",
+  parkeren: "Parkeren is gratis. Er is voldoende parkeergelegenheid bij Mereveld.",
   ov: "Met het openbaar vervoer? Mereveld ligt op slechts 1 km (20 minuten lopen) van NS-station Utrecht Lunetten.",
 }
 
@@ -46,7 +46,7 @@ const DRESSCODE = {
 
 const CADEAUTIP = {
   intro:
-    "Jullie aanwezigheid is het mooiste cadeau. Willen jullie ons toch verwennen? Wij sparen liever herinneringen dan spullen — met een bijdrage aan één van deze belevenissen maken jullie ons heel blij:",
+    "Jullie aanwezigheid is het mooiste cadeau. Willen jullie ons toch verwennen? Wij sparen liever herinneringen dan spullen. Met een bijdrage aan één van deze belevenissen maken jullie ons heel blij:",
   belevenissen: [
     { icon: Bird, tekst: "Vogelexcursie of natuurwandeling met gids" },
     { icon: Luggage, tekst: "Weekendje weg in Nederland" },
@@ -64,8 +64,7 @@ const CONTACT = {
     { naam: "Anton Melchior", telefoon: "06-420 605 57" },
     { naam: "Sira de Waard", telefoon: "06-294 289 07" },
   ],
-  toelichting:
-    "Vragen op de dag zelf? Bel of app de ceremoniemeesters — niet het bruidspaar 😉",
+  toelichting: "Vragen op de dag zelf? Bel of app de ceremoniemeesters.",
 }
 
 const PRAKTISCH = [
@@ -78,7 +77,7 @@ const PRAKTISCH = [
   {
     icon: BedDouble,
     titel: "Overnachten",
-    tekst: "Wij overnachten bij Kasteel Kerckebosch. Wil je daar ook blijven slapen? Reserveer dan zelf even een kamer. De volgende ochtend ontbijten we daar — gasten die er overnachten kunnen gezellig aanschuiven.",
+    tekst: "Wij overnachten bij Kasteel Kerckebosch. Wil je daar ook blijven slapen? Reserveer dan zelf even een kamer. De volgende ochtend ontbijten we daar. Gasten die er overnachten kunnen gezellig aanschuiven.",
     link: { href: "https://www.kasteelkerckebosch.com", label: "kasteelkerckebosch.com" },
   },
 ]
@@ -174,7 +173,7 @@ export default function InfoPage() {
             {/* Grote cirkels overlappen richting het midden (middelste bovenop),
                 kleintjes sluiten aan en verschuilen zich half achter de grote rij */}
             <div className="pb-4">
-              <div className="relative z-10 flex justify-center items-center -space-x-4">
+              <div className="relative z-10 flex justify-center items-end -space-x-4">
                 {DRESSCODE.kleuren.map((kleur, i) => {
                   const maat = [56, 62, 68, 62, 56][i]
                   return (
@@ -191,7 +190,7 @@ export default function InfoPage() {
                   )
                 })}
               </div>
-              <div className="relative z-0 -mt-4 flex justify-center">
+              <div className="relative z-0 -mt-4 flex justify-center translate-x-[10px]">
                 {DRESSCODE.kleurenKlein.map((kleur) => (
                   <span
                     key={kleur}

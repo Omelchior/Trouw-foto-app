@@ -116,7 +116,7 @@ export default function ProfielPage() {
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">Naar het beheer</p>
                   <p className="text-xs text-muted-foreground">
-                    {profile.role === "admin" ? "Admin dashboard" : "Ceremoniemeester"} — vraagt om het beheer-wachtwoord
+                    {profile.role === "admin" ? "Admin dashboard" : "Ceremoniemeester"} (vraagt om het beheer-wachtwoord)
                   </p>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
@@ -156,7 +156,7 @@ export default function ProfielPage() {
           <CardHeader>
             <CardTitle className="text-lg">Inloggen op een ander apparaat</CardTitle>
             <CardDescription>
-              Dat hoef je niet apart te regelen — kies op elk apparaat gewoon
+              Dat hoef je niet apart te regelen. Kies op elk apparaat gewoon
               opnieuw je naam op de startpagina en je komt automatisch terug in
               dit account, met je eigen foto&apos;s en bingo-voortgang.
             </CardDescription>

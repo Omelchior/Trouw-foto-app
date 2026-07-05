@@ -113,7 +113,7 @@ export default function CeremoniemeesterPage() {
           <div>
             <h1 className="font-serif text-3xl font-bold">Ceremoniemeester</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Vragen van de gasten — inclusief geheime.
+              Vragen van de gasten, inclusief geheime.
             </p>
           </div>
           <Button variant="ghost" onClick={handleSignOut} className="gap-2">

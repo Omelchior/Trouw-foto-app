@@ -21,6 +21,7 @@ function Ringen({ className }: { className?: string }) {
 }
 import { Navigation } from "@/components/navigation"
 import { AdminAccessButton } from "@/components/admin-access-button"
+import { PROGRAMMA, TROUWDATUM_TEKST } from "@/lib/bruiloft"
 import {
   Card,
   CardContent,
@@ -32,17 +33,15 @@ import {
 // ─────────────────────────────────────────────────────────────
 // Alle inhoud op één plek — pas hier de details aan.
 // ─────────────────────────────────────────────────────────────
-const DATUM = "Vrijdag 21 augustus 2026"
-
-const PROGRAMMA = [
-  { tijd: "14:00", titel: "Aanvang", omschrijving: "Ontvangst op Mereveld", icon: Heart },
-  { tijd: "14:30", titel: "Ceremonie", omschrijving: "Het ja-woord", icon: Ringen },
-  { tijd: "15:30", titel: "Taart", omschrijving: "Tijd voor iets zoets", icon: Cake },
-  { tijd: "16:00", titel: "Borrel", omschrijving: "Proosten op het bruidspaar", icon: Wine },
-  { tijd: "17:30", titel: "Diner", omschrijving: "Aan tafel", icon: Utensils },
-  { tijd: "20:30", titel: "Feest", omschrijving: "Met de voeten van de vloer", icon: Music },
-  { tijd: "00:30", titel: "Einde", omschrijving: "Wel thuis!", icon: Home },
-]
+const PROGRAMMA_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  Aanvang: Heart,
+  Ceremonie: Ringen,
+  Taart: Cake,
+  Borrel: Wine,
+  Diner: Utensils,
+  Feest: Music,
+  Einde: Home,
+}
 
 const AVONDGASTEN =
   "Kom je voor het avondfeest? Vanaf 20:00 uur ben je welkom. Om 20:30 uur gaan we met een drankje in de hand met de voeten van de vloer."
@@ -115,7 +114,7 @@ export default function InfoPage() {
           <h1 className="font-serif text-3xl font-bold text-foreground mb-2">
             Aanvullende informatie
           </h1>
-          <p className="font-medium text-primary">{DATUM}</p>
+          <p className="font-medium text-primary">{TROUWDATUM_TEKST}</p>
           <p className="text-muted-foreground">
             Alles wat je moet weten over de grote dag
           </p>
@@ -132,7 +131,7 @@ export default function InfoPage() {
           <CardContent>
             <ol className="space-y-4">
               {PROGRAMMA.map((item) => {
-                const Icon = item.icon
+                const Icon = PROGRAMMA_ICONS[item.titel] ?? Clock
                 return (
                   <li key={item.tijd} className="flex items-center gap-3">
                     <p className="w-[72px] shrink-0 text-right text-sm font-semibold text-primary">

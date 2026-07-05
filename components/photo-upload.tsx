@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { useDropzone } from "react-dropzone"
 import { Camera, Upload, X, Loader2, Check, Heart, Target } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
@@ -119,12 +118,20 @@ export function PhotoUpload({ onUploadComplete, guestName, userId }: PhotoUpload
     })
   }, [])
 
-  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
-    onDrop,
-    accept: { "image/*": [".jpeg", ".jpg", ".png", ".webp", ".heic", ".heif"] },
-    noClick: true,
-    noKeyboard: true,
-  })
+  // Foto's kiezen via een gewone file-picker (de app wordt vooral op
+  // telefoons gebruikt, dus geen sleepvlak).
+  const kiesFotos = useCallback((viaCamera: boolean) => {
+    const input = document.createElement("input")
+    input.type = "file"
+    input.accept = "image/*"
+    input.multiple = true
+    if (viaCamera) input.capture = "environment"
+    input.onchange = (e) => {
+      const f = (e.target as HTMLInputElement).files
+      if (f) onDrop(Array.from(f))
+    }
+    input.click()
+  }, [onDrop])
 
   const removeFile = (index: number) => {
     setFiles(prev => prev.filter((_, i) => i !== index))
@@ -355,47 +362,28 @@ export function PhotoUpload({ onUploadComplete, guestName, userId }: PhotoUpload
         </div>
       )}
 
-      <div
-        {...getRootProps()}
-        className={cn(
-          "border-2 border-dashed rounded-xl p-6 text-center transition-colors",
-          isDragActive ? "border-primary bg-primary/5" : "border-border"
-        )}
-      >
-        <input {...getInputProps()} />
-
+      <div className="border border-border rounded-xl p-6 text-center">
         {files.length === 0 ? (
           <div className="space-y-4">
             <div className="mx-auto w-14 h-14 rounded-full bg-secondary flex items-center justify-center">
-              <Upload className="w-7 h-7 text-muted-foreground" />
+              <Camera className="w-7 h-7 text-muted-foreground" />
             </div>
-            <div>
-              <p className="font-medium">Sleep foto&apos;s hierheen</p>
-              <p className="text-sm text-muted-foreground">of gebruik een van de opties</p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button onClick={open} variant="outline" className="gap-2 bg-transparent">
-                <Upload className="w-4 h-4" />
-                Kies bestanden
+            <p className="font-medium">Deel je foto&apos;s van vandaag</p>
+            <div className="space-y-3">
+              <Button
+                onClick={() => kiesFotos(true)}
+                className="w-full h-12 text-base gap-2"
+              >
+                <Camera className="w-5 h-5" />
+                Maak een foto
               </Button>
               <Button
-                onClick={() => {
-                  const input = document.createElement("input")
-                  input.type = "file"
-                  input.accept = "image/*"
-                  input.capture = "environment"
-                  input.multiple = true
-                  input.onchange = (e) => {
-                    const f = (e.target as HTMLInputElement).files
-                    if (f) onDrop(Array.from(f))
-                  }
-                  input.click()
-                }}
+                onClick={() => kiesFotos(false)}
                 variant="outline"
-                className="gap-2"
+                className="w-full h-12 text-base gap-2"
               >
-                <Camera className="w-4 h-4" />
-                Maak een foto
+                <Upload className="w-5 h-5" />
+                Kies uit je galerij
               </Button>
             </div>
           </div>
@@ -418,7 +406,7 @@ export function PhotoUpload({ onUploadComplete, guestName, userId }: PhotoUpload
                 </div>
               ))}
               <button
-                onClick={open}
+                onClick={() => kiesFotos(false)}
                 className="aspect-square border-2 border-dashed border-border rounded-lg flex items-center justify-center hover:border-primary hover:bg-primary/5 transition-colors"
               >
                 <Upload className="w-5 h-5 text-muted-foreground" />

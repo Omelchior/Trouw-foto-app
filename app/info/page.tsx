@@ -40,8 +40,8 @@ const LOCATIE = {
 const DRESSCODE = {
   code: "Feestelijk",
   toelichting: "Kleuren ter inspiratie:",
-  kleuren: ["#4F5883", "#93A97D", "#AEC0A4", "#F5F3E3", "#B6A65A"],
-  kleurenKlein: ["#C4D6A4", "#B3C7E6", "#C99377", "#E3B98F", "#EFE3A2"],
+  kleuren: ["#4D5A76", "#97A37E", "#A8B7A1", "#F1F0E6", "#B8A773"],
+  kleurenKlein: ["#648E6A", "#B4CAE1", "#C49A8E", "#D1A581", "#EADEAC"],
 }
 
 const CADEAUTIP = {
@@ -55,7 +55,8 @@ const CADEAUTIP = {
     { icon: Sparkles, tekst: "Sauna- of wellnessdag" },
     { icon: Ticket, tekst: "Tickets voor een voorstelling" },
   ],
-  outro: "Er staat een enveloppendoos bij de ingang.",
+  outro:
+    "Daarnaast sparen we ook voor een mooie serviesset. Er staat een enveloppendoos bij de ingang.",
 }
 
 const CONTACT = {
@@ -162,27 +163,32 @@ export default function InfoPage() {
             <CardTitle className="flex items-center gap-2 font-serif text-xl">
               <Shirt className="w-5 h-5 text-primary" /> Dresscode
             </CardTitle>
-            <CardDescription>{DRESSCODE.code}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">{DRESSCODE.toelichting}</p>
-            <div className="flex justify-center -space-x-3">
-              {DRESSCODE.kleuren.map((kleur) => (
-                <span
-                  key={kleur}
-                  className="w-12 h-12 rounded-full border border-border/50"
-                  style={{ backgroundColor: kleur }}
-                />
-              ))}
-            </div>
-            <div className="flex justify-center gap-2">
-              {DRESSCODE.kleurenKlein.map((kleur) => (
-                <span
-                  key={kleur}
-                  className="w-6 h-6 rounded-full border border-border/50"
-                  style={{ backgroundColor: kleur }}
-                />
-              ))}
+            <p className="font-serif text-2xl font-bold text-center text-foreground">
+              {DRESSCODE.code}
+            </p>
+            <p className="text-sm text-muted-foreground text-center">{DRESSCODE.toelichting}</p>
+            {/* Grote cirkels overlappend op één rij, kleintjes half verscholen eronder */}
+            <div className="pb-4">
+              <div className="relative z-10 flex justify-center -space-x-4">
+                {DRESSCODE.kleuren.map((kleur) => (
+                  <span
+                    key={kleur}
+                    className="w-14 h-14 rounded-full border-2 border-card"
+                    style={{ backgroundColor: kleur }}
+                  />
+                ))}
+              </div>
+              <div className="relative z-0 -mt-3 flex justify-center gap-5">
+                {DRESSCODE.kleurenKlein.map((kleur) => (
+                  <span
+                    key={kleur}
+                    className="w-9 h-9 rounded-full"
+                    style={{ backgroundColor: kleur }}
+                  />
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>

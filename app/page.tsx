@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect } from "react"
 import Link from "next/link"
-import { Heart, Shield } from "lucide-react"
+import { Heart, Shield, Target, Images, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PhotoUpload } from "@/components/photo-upload"
 import { Navigation } from "@/components/navigation"
@@ -12,8 +12,33 @@ import { WelcomeScreen } from "@/components/welcome-screen"
 import { getGuestSession, type GuestSession } from "@/lib/guest"
 import { createClient } from "@/lib/supabase/client"
 
+const TROUWDAG = new Date(2026, 7, 21) // vrijdag 21 augustus 2026
+
+const SNELKOPPELINGEN = [
+  { href: "/bingo", label: "Bingo", omschrijving: "Speel mee", icon: Target },
+  { href: "/selectie", label: "Galerij", omschrijving: "Alle foto's", icon: Images },
+  { href: "/info", label: "Info", omschrijving: "Programma & meer", icon: Info },
+]
+
+/** "Nog X dagen", "Vandaag is het zover!" of niets (na de bruiloft). */
+function countdownTekst(): string | null {
+  const vandaag = new Date()
+  vandaag.setHours(0, 0, 0, 0)
+  const dagen = Math.round((TROUWDAG.getTime() - vandaag.getTime()) / 86_400_000)
+  if (dagen > 1) return `Nog ${dagen} dagen`
+  if (dagen === 1) return "Nog 1 dag!"
+  if (dagen === 0) return "Vandaag is het zover! 🎉"
+  return null
+}
+
 export default function HomePage() {
   const [session, setSession] = useState<GuestSession | null | "loading">("loading")
+  const [countdown, setCountdown] = useState<string | null>(null)
+
+  // In een effect zodat server- en client-render niet verschillen.
+  useEffect(() => {
+    setCountdown(countdownTekst())
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -78,24 +103,58 @@ export default function HomePage() {
         <AdminAccessButton />
       </div>
 
-      <div className="max-w-lg mx-auto px-4 py-8">
-        <header className="text-center mb-8">
+      <div className="max-w-lg mx-auto px-4 py-8 space-y-8">
+        <header className="text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
-            <Heart className="w-8 h-8 text-primary" />
+            <Heart className="w-8 h-8 text-primary fill-primary/30" />
           </div>
-          <h1 className="font-serif text-3xl font-bold text-foreground mb-1">
-            Hé {session.name.split(" ")[0]}! 👋
+          <h1 className="font-serif text-4xl font-bold text-foreground mb-1">
+            Olaf &amp; Ester
           </h1>
-          <p className="text-muted-foreground">
-            Deel de mooiste momenten van deze dag
-          </p>
+          <p className="font-medium text-primary mb-2">Vrijdag 21 augustus 2026</p>
+          {countdown && (
+            <span className="inline-block rounded-full bg-primary/10 px-4 py-1 text-sm font-medium text-primary">
+              {countdown}
+            </span>
+          )}
         </header>
 
-        <PhotoUpload
-          guestName={session.name}
-          userId={session.user_id}
-          onUploadComplete={() => {}}
-        />
+        <div>
+          <div className="text-center mb-4">
+            <h2 className="font-serif text-xl font-bold text-foreground">
+              Hé {session.name.split(" ")[0]}! 👋
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Deel de mooiste momenten van deze dag
+            </p>
+          </div>
+          <PhotoUpload
+            guestName={session.name}
+            userId={session.user_id}
+            onUploadComplete={() => {}}
+          />
+        </div>
+
+        <div className="grid grid-cols-3 gap-3">
+          {SNELKOPPELINGEN.map((item) => {
+            const Icon = item.icon
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-4 text-center hover:bg-muted/60 transition-colors"
+              >
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Icon className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">{item.omschrijving}</p>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
       </div>
 
       <Navigation />

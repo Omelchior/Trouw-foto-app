@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
+import { zetAanmeldingVoor } from "@/lib/guest"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -37,6 +38,7 @@ interface GuestRow {
   role: Role
   label: string | null
   claimed_user_id: string | null
+  aangemeld: boolean
 }
 
 const ROLE_OPTIONS: { value: Role; text: string }[] = [
@@ -96,14 +98,23 @@ export function GuestListManager() {
     const supabase = createClient()
     const { data, error } = await supabase
       .from("guests")
+      .select("id, slug, name, phone, role, label, claimed_user_id, aangemeld")
+      .order("name")
+    if (!error && data) {
+      setGuests(data as GuestRow[])
+      return
+    }
+    // Fallback zolang migratie 007 (aangemeld-kolom) nog niet is uitgevoerd.
+    const legacy = await supabase
+      .from("guests")
       .select("id, slug, name, phone, role, label, claimed_user_id")
       .order("name")
-    if (error) {
-      console.error(error)
+    if (legacy.error) {
+      console.error(legacy.error)
       toast.error("Kon de gastenlijst niet laden")
       return
     }
-    setGuests((data || []) as GuestRow[])
+    setGuests((legacy.data || []).map((g) => ({ ...g, aangemeld: false })) as GuestRow[])
   }
 
   useEffect(() => {
@@ -199,6 +210,20 @@ export function GuestListManager() {
     fetchGuests()
   }
 
+  const toggleAangemeld = async (g: GuestRow) => {
+    try {
+      await zetAanmeldingVoor(g.slug, !g.aangemeld)
+      setGuests((prev) =>
+        prev === "loading"
+          ? prev
+          : prev.map((row) => (row.id === g.id ? { ...row, aangemeld: !g.aangemeld } : row)),
+      )
+    } catch (err) {
+      console.error(err)
+      toast.error("Aanmelding wijzigen mislukt (is migratie 007 al uitgevoerd?)")
+    }
+  }
+
   const confirmDelete = async () => {
     if (!deleteRow) return
     const supabase = createClient()
@@ -268,7 +293,8 @@ export function GuestListManager() {
       </div>
 
       <p className="text-xs text-muted-foreground mb-3">
-        {list.length} gasten op de lijst{query && ` (${filtered.length} gevonden)`}
+        {list.length} gasten op de lijst, {list.filter((g) => g.aangemeld).length} aangemeld
+        {query && ` (${filtered.length} gevonden)`}
       </p>
 
       {guests === "loading" ? (
@@ -344,6 +370,18 @@ export function GuestListManager() {
                   {g.phone && <p className="text-xs text-muted-foreground truncate">{g.phone}</p>}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => toggleAangemeld(g)}
+                    title={g.aangemeld ? "Aangemeld (klik om af te melden)" : "Niet aangemeld (klik om aan te melden)"}
+                    className={
+                      g.aangemeld
+                        ? "text-xs px-2 py-1 rounded-full bg-primary text-primary-foreground font-medium"
+                        : "text-xs px-2 py-1 rounded-full border border-border text-muted-foreground hover:bg-muted"
+                    }
+                  >
+                    {g.aangemeld ? "Aangemeld" : "Aanmelden"}
+                  </button>
                   <Button size="icon" variant="ghost" onClick={() => startEdit(g)} title="Bewerk">
                     <Pencil className="w-4 h-4" />
                   </Button>

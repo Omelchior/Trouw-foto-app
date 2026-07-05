@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { AanmeldingenManager } from "@/components/aanmeldingen-manager"
 import type { QaEntry } from "@/components/qa-feed"
 
 function formatTime(iso: string): string {
@@ -30,6 +31,7 @@ export default function CeremoniemeesterPage() {
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState<Record<string, boolean>>({})
   const [filter, setFilter] = useState<"open" | "beantwoord" | "alle">("open")
+  const [sectie, setSectie] = useState<"vragen" | "aanmeldingen">("vragen")
 
   const load = async () => {
     const supabase = createClient()
@@ -113,7 +115,7 @@ export default function CeremoniemeesterPage() {
           <div>
             <h1 className="font-serif text-3xl font-bold">Ceremoniemeester</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Vragen van de gasten, inclusief geheime.
+              Vragen van de gasten en de aanmeldingen.
             </p>
           </div>
           <Button variant="ghost" onClick={handleSignOut} className="gap-2">
@@ -121,6 +123,27 @@ export default function CeremoniemeesterPage() {
           </Button>
         </div>
 
+        <div className="flex gap-2 mb-6 border-b border-border">
+          {(["vragen", "aanmeldingen"] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => setSectie(s)}
+              className={cn(
+                "px-4 py-2 text-sm font-medium transition-colors border-b-2",
+                sectie === s
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {s === "vragen" ? "Vragen" : "Aanmeldingen"}
+            </button>
+          ))}
+        </div>
+
+        {sectie === "aanmeldingen" ? (
+          <AanmeldingenManager />
+        ) : (
+        <>
         <div className="flex gap-2 mb-6 border-b border-border">
           {(["open", "beantwoord", "alle"] as const).map((f) => (
             <button
@@ -212,6 +235,8 @@ export default function CeremoniemeesterPage() {
               </Card>
             ))}
           </div>
+        )}
+        </>
         )}
 
         <div className="mt-8 text-center">

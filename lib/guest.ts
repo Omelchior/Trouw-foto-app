@@ -36,6 +36,7 @@ export interface GuestListEntry {
   name: string
   label: string | null
   role: Role
+  aangemeld: boolean
 }
 
 export interface UploadCounts {
@@ -93,11 +94,36 @@ export async function getGuestList(): Promise<GuestListEntry[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('guests')
-    .select('slug, name, label, role')
+    .select('slug, name, label, role, aangemeld')
     .order('name')
 
-  if (error || !data) return []
-  return data as GuestListEntry[]
+  if (!error && data) return data as GuestListEntry[]
+
+  // Fallback zolang migratie 007 (aangemeld-kolom) nog niet is uitgevoerd:
+  // gedraag je als voorheen (iedereen telt als aangemeld, geen bevestigstap).
+  const legacy = await supabase
+    .from('guests')
+    .select('slug, name, label, role')
+    .order('name')
+  if (legacy.error || !legacy.data) return []
+  return legacy.data.map((g) => ({ ...g, aangemeld: true })) as GuestListEntry[]
+}
+
+/** Gast meldt zichzelf aan (of af) voor de bruiloft. */
+export async function zetMijnAanmelding(aangemeld: boolean): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase.rpc('zet_mijn_aanmelding', { p_aangemeld: aangemeld })
+  if (error) throw error
+}
+
+/** Beheer of ceremoniemeester zet de aanmelding van een willekeurige gast. */
+export async function zetAanmeldingVoor(slug: string, aangemeld: boolean): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase.rpc('zet_aanmelding_voor', {
+    p_slug: slug,
+    p_aangemeld: aangemeld,
+  })
+  if (error) throw error
 }
 
 /**

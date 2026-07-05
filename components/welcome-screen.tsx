@@ -1,10 +1,12 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Heart, Loader2, Search, Crown } from "lucide-react"
+import { Heart, Loader2, Search, Crown, ChevronLeft, PartyPopper } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { loginAsGuest, getGuestList, type GuestListEntry } from "@/lib/guest"
+import { loginAsGuest, getGuestList, zetMijnAanmelding, type GuestListEntry } from "@/lib/guest"
+import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 
 interface WelcomeScreenProps {
@@ -15,6 +17,9 @@ export function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
   const [guests, setGuests] = useState<GuestListEntry[] | "loading">("loading")
   const [query, setQuery] = useState("")
   const [loggingIn, setLoggingIn] = useState<string | null>(null)
+  // Gast is ingelogd maar staat nog niet op aanwezig: eerst even bevestigen.
+  const [confirmGuest, setConfirmGuest] = useState<GuestListEntry | null>(null)
+  const [confirming, setConfirming] = useState<"ja" | "nee" | null>(null)
 
   useEffect(() => {
     getGuestList().then((list) => setGuests(list))
@@ -32,12 +37,104 @@ export function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
     setLoggingIn(guest.slug)
     try {
       const session = await loginAsGuest(guest.slug)
-      onComplete(session.name)
+      if (guest.aangemeld) {
+        onComplete(session.name)
+      } else {
+        // Nog niet op aanwezig gezet: eerst de aanmeld-bevestiging tonen.
+        setConfirmGuest(guest)
+        setLoggingIn(null)
+      }
     } catch (err) {
       console.error(err)
       toast.error("Inloggen mislukt. Probeer het opnieuw.")
       setLoggingIn(null)
     }
+  }
+
+  const handleAanmelden = async () => {
+    if (!confirmGuest || confirming) return
+    setConfirming("ja")
+    try {
+      await zetMijnAanmelding(true)
+      toast.success("Wat leuk dat je erbij bent! 🎉")
+      onComplete(confirmGuest.name)
+    } catch (err) {
+      console.error(err)
+      toast.error("Aanmelden mislukt. Probeer het opnieuw.")
+      setConfirming(null)
+    }
+  }
+
+  const handleAfmelden = async () => {
+    if (!confirmGuest || confirming) return
+    setConfirming("nee")
+    try {
+      await zetMijnAanmelding(false)
+      await createClient().auth.signOut()
+      toast("Jammer! Verander je van gedachten, dan kies je gewoon opnieuw je naam.")
+      setConfirmGuest(null)
+      setGuests(await getGuestList())
+    } catch (err) {
+      console.error(err)
+      toast.error("Er ging iets mis. Probeer het opnieuw.")
+    } finally {
+      setConfirming(null)
+    }
+  }
+
+  // Bevestigstap: ben je erbij?
+  if (confirmGuest) {
+    return (
+      <div className="fixed inset-0 bg-background z-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-sm text-center">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-4">
+            <PartyPopper className="w-10 h-10 text-primary" />
+          </div>
+          <h1 className="font-serif text-3xl font-bold text-foreground mb-2">
+            Hoi {confirmGuest.name.split(" ")[0]}!
+          </h1>
+          <p className="text-muted-foreground mb-8">
+            Leuk dat je er bent. Ben je erbij op de bruiloft van Olaf &amp; Ester,
+            vrijdag 21 augustus 2026?
+          </p>
+
+          <div className="space-y-3">
+            <Button
+              onClick={handleAanmelden}
+              disabled={!!confirming}
+              className="w-full h-12 text-base"
+            >
+              {confirming === "ja" ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Heart className="w-4 h-4 mr-2" />
+              )}
+              Ja, ik ben erbij!
+            </Button>
+            <Button
+              onClick={handleAfmelden}
+              disabled={!!confirming}
+              variant="outline"
+              className="w-full h-12"
+            >
+              {confirming === "nee" && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Ik kan er helaas niet bij zijn
+            </Button>
+          </div>
+
+          <button
+            type="button"
+            onClick={async () => {
+              await createClient().auth.signOut()
+              setConfirmGuest(null)
+            }}
+            className="mt-6 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ChevronLeft className="w-4 h-4" /> Dit ben ik niet
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (

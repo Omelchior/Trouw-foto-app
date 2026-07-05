@@ -9,7 +9,7 @@ import { Navigation } from "@/components/navigation"
 import { AdminAccessButton } from "@/components/admin-access-button"
 import { AuthErrorHandler } from "@/components/auth-error-handler"
 import { WelcomeScreen } from "@/components/welcome-screen"
-import { getGuestSession, type GuestSession } from "@/lib/guest"
+import { getGuestSession, getMijnAanmelding, type GuestSession } from "@/lib/guest"
 import { createClient } from "@/lib/supabase/client"
 
 const TROUWDAG = new Date(2026, 7, 21) // vrijdag 21 augustus 2026
@@ -33,6 +33,9 @@ function countdownTekst(): string | null {
 
 export default function HomePage() {
   const [session, setSession] = useState<GuestSession | null | "loading">("loading")
+  // Ingelogd maar nog niet aangemeld? Dan blijft het welkomscherm staan
+  // zodat de aanmeld-bevestiging daar kan worden afgerond.
+  const [aangemeld, setAangemeld] = useState(true)
   const [countdown, setCountdown] = useState<string | null>(null)
 
   // In een effect zodat server- en client-render niet verschillen.
@@ -45,8 +48,10 @@ export default function HomePage() {
 
     const load = async () => {
       const s = await getGuestSession()
+      const a = s ? await getMijnAanmelding() : null
       if (!active) return
       setSession(s)
+      setAangemeld(a ?? true)
     }
 
     load()
@@ -65,6 +70,7 @@ export default function HomePage() {
 
   const handleWelcomeComplete = async () => {
     const s = await getGuestSession()
+    setAangemeld(true)
     setSession(s)
   }
 
@@ -76,7 +82,7 @@ export default function HomePage() {
     )
   }
 
-  if (session === null) {
+  if (session === null || !aangemeld) {
     return <WelcomeScreen onComplete={handleWelcomeComplete} />
   }
 

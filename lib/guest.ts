@@ -109,6 +109,27 @@ export async function getGuestList(): Promise<GuestListEntry[]> {
   return legacy.data.map((g) => ({ ...g, aangemeld: true })) as GuestListEntry[]
 }
 
+/**
+ * Is de ingelogde gast aangemeld (aanwezig)?
+ * Geeft null bij onbekend (geen gast-rij of migratie 007 nog niet uitgevoerd);
+ * behandel null als "aangemeld" zodat de app blijft werken.
+ */
+export async function getMijnAanmelding(): Promise<boolean | null> {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const slug = (user?.email ?? '').split('@')[0]
+  if (!slug) return null
+
+  const { data, error } = await supabase
+    .from('guests')
+    .select('aangemeld')
+    .eq('slug', slug)
+    .maybeSingle()
+
+  if (error || !data) return null
+  return (data as { aangemeld: boolean }).aangemeld
+}
+
 /** Gast meldt zichzelf aan (of af) voor de bruiloft. */
 export async function zetMijnAanmelding(aangemeld: boolean): Promise<void> {
   const supabase = createClient()

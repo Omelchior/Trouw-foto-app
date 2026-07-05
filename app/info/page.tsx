@@ -64,7 +64,7 @@ const PRAKTISCH = [
   {
     icon: BedDouble,
     titel: "Overnachten",
-    tekst: "In de buurt zijn diverse hotels en B&B's. Vraag de ceremoniemeesters naar de tips.",
+    tekst: "Wij overnachten bij Kasteel Kerckebosch. Wil je daar ook blijven slapen? Reserveer dan zelf even een kamer. De volgende ochtend ontbijten we daar — gasten die er overnachten kunnen gezellig aanschuiven.",
   },
 ]
 

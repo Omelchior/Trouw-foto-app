@@ -73,11 +73,13 @@ const PRAKTISCH = [
     icon: UtensilsCrossed,
     titel: "Allergieën & dieetwensen",
     tekst: "Laat dieetwensen of allergieën vóór 31 juli even weten via 06-250 600 54 of 06-316 428 88.",
+    link: null,
   },
   {
     icon: BedDouble,
     titel: "Overnachten",
     tekst: "Wij overnachten bij Kasteel Kerckebosch. Wil je daar ook blijven slapen? Reserveer dan zelf even een kamer. De volgende ochtend ontbijten we daar — gasten die er overnachten kunnen gezellig aanschuiven.",
+    link: { href: "https://www.kasteelkerckebosch.com", label: "kasteelkerckebosch.com" },
   },
 ]
 
@@ -169,22 +171,31 @@ export default function InfoPage() {
               {DRESSCODE.code}
             </p>
             <p className="text-sm text-muted-foreground text-center">{DRESSCODE.toelichting}</p>
-            {/* Grote cirkels overlappend op één rij, kleintjes half verscholen eronder */}
+            {/* Grote cirkels overlappen richting het midden (middelste bovenop),
+                kleintjes sluiten aan en verschuilen zich half achter de grote rij */}
             <div className="pb-4">
-              <div className="relative z-10 flex justify-center -space-x-4">
-                {DRESSCODE.kleuren.map((kleur) => (
-                  <span
-                    key={kleur}
-                    className="w-14 h-14 rounded-full border-2 border-card"
-                    style={{ backgroundColor: kleur }}
-                  />
-                ))}
+              <div className="relative z-10 flex justify-center items-center -space-x-4">
+                {DRESSCODE.kleuren.map((kleur, i) => {
+                  const maat = [56, 62, 68, 62, 56][i]
+                  return (
+                    <span
+                      key={kleur}
+                      className="relative rounded-full border-2 border-card shrink-0"
+                      style={{
+                        backgroundColor: kleur,
+                        width: maat,
+                        height: maat,
+                        zIndex: 30 - Math.abs(i - 2) * 10,
+                      }}
+                    />
+                  )
+                })}
               </div>
-              <div className="relative z-0 -mt-3 flex justify-center gap-5">
+              <div className="relative z-0 -mt-4 flex justify-center">
                 {DRESSCODE.kleurenKlein.map((kleur) => (
                   <span
                     key={kleur}
-                    className="w-9 h-9 rounded-full"
+                    className="w-9 h-9 rounded-full shrink-0"
                     style={{ backgroundColor: kleur }}
                   />
                 ))}
@@ -251,6 +262,16 @@ export default function InfoPage() {
                   <div>
                     <p className="font-medium text-foreground">{item.titel}</p>
                     <p className="text-sm text-muted-foreground">{item.tekst}</p>
+                    {item.link && (
+                      <a
+                        href={item.link.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-medium text-primary hover:underline"
+                      >
+                        {item.link.label} →
+                      </a>
+                    )}
                   </div>
                 </div>
               )

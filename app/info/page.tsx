@@ -1,6 +1,6 @@
 "use client"
 
-import { Info, Clock, MapPin, Shirt, Gift, Phone, BedDouble, UtensilsCrossed, Car, PartyPopper, TrainFront } from "lucide-react"
+import { Info, Clock, MapPin, Shirt, Gift, Phone, BedDouble, UtensilsCrossed, Car, PartyPopper, TrainFront, Bird, Luggage, Wine, Sparkles, Ticket } from "lucide-react"
 import { Navigation } from "@/components/navigation"
 import { AdminAccessButton } from "@/components/admin-access-button"
 import {
@@ -44,8 +44,19 @@ const DRESSCODE = {
   kleurenKlein: ["#C4D6A4", "#B3C7E6", "#C99377", "#E3B98F", "#EFE3A2"],
 }
 
-const CADEAUTIP =
-  "Jullie aanwezigheid is het mooiste cadeau. Wil je toch iets geven? Een bijdrage aan onze huwelijksreis maakt ons heel blij. Er staat een enveloppendoos bij de ingang."
+const CADEAUTIP = {
+  intro:
+    "Jullie aanwezigheid is het mooiste cadeau. Willen jullie ons toch verwennen? Wij sparen liever herinneringen dan spullen — met een bijdrage aan één van deze belevenissen maken jullie ons heel blij:",
+  belevenissen: [
+    { icon: Bird, tekst: "Vogelexcursie of natuurwandeling met gids" },
+    { icon: Luggage, tekst: "Weekendje weg in Nederland" },
+    { icon: UtensilsCrossed, tekst: "Dinerbon voor een mooi restaurant" },
+    { icon: Wine, tekst: "Wijnproeverij of speciaalbierproeverij" },
+    { icon: Sparkles, tekst: "Sauna- of wellnessdag" },
+    { icon: Ticket, tekst: "Tickets voor een voorstelling" },
+  ],
+  outro: "Er staat een enveloppendoos bij de ingang.",
+}
 
 const CONTACT = {
   ceremoniemeesters: [
@@ -183,8 +194,22 @@ export default function InfoPage() {
               <Gift className="w-5 h-5 text-primary" /> Cadeautip
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">{CADEAUTIP}</p>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">{CADEAUTIP.intro}</p>
+            <ul className="space-y-2">
+              {CADEAUTIP.belevenissen.map((item) => {
+                const Icon = item.icon
+                return (
+                  <li key={item.tekst} className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <Icon className="w-4 h-4 text-primary" />
+                    </div>
+                    <span className="text-sm text-foreground">{item.tekst}</span>
+                  </li>
+                )
+              })}
+            </ul>
+            <p className="text-sm text-muted-foreground">{CADEAUTIP.outro}</p>
           </CardContent>
         </Card>
 

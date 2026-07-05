@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import Link from "next/link"
 import { Heart, Loader2, Search, Crown } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -110,14 +109,6 @@ export function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
           )}
         </div>
 
-        <div className="text-center mt-5 shrink-0">
-          <Link
-            href="/rsvp"
-            className="text-sm text-muted-foreground underline underline-offset-2 inline-block"
-          >
-            Aanmelden voor de bruiloft →
-          </Link>
-        </div>
       </div>
     </div>
   )

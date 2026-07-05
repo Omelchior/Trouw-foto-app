@@ -13,7 +13,8 @@ export async function POST(request: Request) {
       { status: 500 },
     )
   }
-  if (password !== expected) {
+  // Hoofdletter-ongevoelig, zodat "Jawoord" en "jawoord" allebei werken.
+  if (password.trim().toLowerCase() !== expected.trim().toLowerCase()) {
     return NextResponse.json({ ok: false }, { status: 401 })
   }
 

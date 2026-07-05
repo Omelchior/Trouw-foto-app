@@ -14,7 +14,6 @@ import {
   Square,
   QrCode,
   MessageCircleQuestion,
-  Heart,
   ClipboardList,
   MonitorPlay,
 } from "lucide-react"
@@ -292,10 +291,6 @@ export default function AdminPage() {
             <Button variant="outline" size="sm" onClick={() => router.push("/diavoorstelling")} className="gap-2 bg-transparent">
               <MonitorPlay className="w-4 h-4" />
               <span className="hidden sm:inline">Diavoorstelling</span>
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => router.push("/admin/rsvp")} className="gap-2 bg-transparent">
-              <Heart className="w-4 h-4" />
-              <span className="hidden sm:inline">RSVP</span>
             </Button>
             <Button variant="outline" size="sm" onClick={() => router.push("/admin/qr")} className="gap-2 bg-transparent">
               <QrCode className="w-4 h-4" />

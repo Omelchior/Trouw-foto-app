@@ -45,7 +45,8 @@ export function BeheerGate({ target, title }: BeheerGateProps) {
         body: JSON.stringify({ password }),
       })
       if (!res.ok) {
-        toast.error("Onjuist wachtwoord")
+        const data = await res.json().catch(() => null)
+        toast.error(data?.error ?? "Onjuist wachtwoord")
         return
       }
       toast.success("Beheer ontgrendeld")

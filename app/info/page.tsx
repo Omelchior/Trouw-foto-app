@@ -79,8 +79,6 @@ const CONTACT = {
   personen: [
     { naam: "Anton Melchior", telefoon: "06-420 605 57" },
     { naam: "Sira de Waard", telefoon: "06-294 289 07" },
-    { naam: "Olaf Melchior", telefoon: "06-250 600 54" },
-    { naam: "Ester Doorlag", telefoon: "06-316 428 88" },
   ],
   toelichting: "Vragen op de dag zelf? Bel of app de ceremoniemeesters.",
 }
@@ -97,14 +95,19 @@ const PRAKTISCH = [
   {
     icon: UtensilsCrossed,
     titel: "Allergieën & dieetwensen",
-    tekst: "Laat dieetwensen of allergieën vóór 31 juli even weten via 06-250 600 54 of 06-316 428 88.",
+    tekst: "Laat dieetwensen of allergieën vóór 31 juli even weten via:",
     link: null,
+    contacten: [
+      { naam: "Olaf Melchior", telefoon: "06-250 600 54" },
+      { naam: "Ester Doorlag", telefoon: "06-316 428 88" },
+    ],
   },
   {
     icon: BedDouble,
     titel: "Overnachten",
     tekst: "Wij overnachten bij Kasteel Kerckebosch. Wil je daar ook blijven slapen? Reserveer dan zelf even een kamer. De volgende ochtend ontbijten we daar. Gasten die er overnachten kunnen gezellig aanschuiven.",
     link: { href: "https://www.kasteelkerckebosch.com", label: "kasteelkerckebosch.com" },
+    contacten: null,
   },
 ]
 
@@ -297,6 +300,20 @@ export default function InfoPage() {
                   <div>
                     <p className="font-medium text-foreground">{item.titel}</p>
                     <p className="text-sm text-muted-foreground">{item.tekst}</p>
+                    {item.contacten && (
+                      <div className="mt-2 space-y-2">
+                        {item.contacten.map((c) => (
+                          <a
+                            key={c.telefoon}
+                            href={`tel:${c.telefoon.replace(/[-\s]/g, "")}`}
+                            className="flex items-center justify-between rounded-lg border border-border p-3 hover:bg-muted transition-colors"
+                          >
+                            <span className="font-medium text-foreground">{c.naam}</span>
+                            <span className="text-sm text-primary">{c.telefoon}</span>
+                          </a>
+                        ))}
+                      </div>
+                    )}
                     {item.link && (
                       <a
                         href={item.link.href}

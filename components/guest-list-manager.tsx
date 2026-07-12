@@ -64,7 +64,7 @@ function roleText(role: Role): string {
 }
 
 const AANWEZIGHEID_KLEUR: Record<Aanwezigheid, string> = {
-  aangemeld: "border-primary bg-primary/10 text-primary",
+  aangemeld: "border-green-600 bg-green-600 text-white font-semibold",
   waarschijnlijk: "border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-400",
   onzeker: "border-border bg-muted text-muted-foreground",
   afwezig: "border-destructive/40 bg-destructive/10 text-destructive",
@@ -130,7 +130,8 @@ export function GuestListManager() {
   const [query, setQuery] = useState("")
   const [filterStatus, setFilterStatus] = useState<"" | Aanwezigheid>("")
   const [filterGroep, setFilterGroep] = useState("")
-  const [filterDagdeel, setFilterDagdeel] = useState<"" | "dag" | "avond">("")
+  const [filterDagdeel, setFilterDagdeel] = useState<"" | "dag" | "avond" | "alleen-avond">("")
+  const [filterOpdracht, setFilterOpdracht] = useState("")
 
   // Add form
   const [addName, setAddName] = useState("")
@@ -183,7 +184,11 @@ export function GuestListManager() {
     return list.filter((g) => {
       if (filterStatus && g.aanwezigheid !== filterStatus) return false
       if (filterGroep && g.groep !== filterGroep) return false
-      if (filterDagdeel && g.dagdeel !== filterDagdeel) return false
+      // Elke daggast is ook avondgast: het avond-filter telt daggasten mee.
+      if (filterDagdeel === "dag" && g.dagdeel !== "dag") return false
+      if (filterDagdeel === "avond" && g.dagdeel !== "dag" && g.dagdeel !== "avond") return false
+      if (filterDagdeel === "alleen-avond" && g.dagdeel !== "avond") return false
+      if (filterOpdracht && g.eerste_opdracht !== parseInt(filterOpdracht, 10)) return false
       if (!q) return true
       return (
         g.name.toLowerCase().includes(q) ||
@@ -195,7 +200,7 @@ export function GuestListManager() {
         (g.dieetwensen ?? "").toLowerCase().includes(q)
       )
     })
-  }, [list, query, filterStatus, filterGroep, filterDagdeel])
+  }, [list, query, filterStatus, filterGroep, filterDagdeel, filterOpdracht])
 
   const telling = useMemo(() => {
     const t: Record<Aanwezigheid, number> = { aangemeld: 0, waarschijnlijk: 0, onzeker: 0, afwezig: 0 }
@@ -319,7 +324,7 @@ export function GuestListManager() {
     setDeleteRow(null)
   }
 
-  const kolommen = 9
+  const kolommen = 7
 
   return (
     <div>
@@ -378,8 +383,8 @@ export function GuestListManager() {
       )}
 
       {/* Filterbalk */}
-      <div className="mb-3 grid gap-2 sm:grid-cols-[1fr_auto_auto_auto]">
-        <div className="relative">
+      <div className="mb-3 flex flex-wrap gap-2">
+        <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             value={query}
@@ -412,13 +417,25 @@ export function GuestListManager() {
         </select>
         <select
           value={filterDagdeel}
-          onChange={(e) => setFilterDagdeel(e.target.value as "" | "dag" | "avond")}
+          onChange={(e) => setFilterDagdeel(e.target.value as "" | "dag" | "avond" | "alleen-avond")}
           className="h-10 rounded-md border border-input bg-background px-2 text-sm"
           title="Filter op dag- of avondgast"
         >
-          <option value="">Dag & avond</option>
+          <option value="">Alle gasten</option>
           <option value="dag">Daggasten</option>
-          <option value="avond">Avondgasten</option>
+          <option value="avond">Avondgasten (incl. dag)</option>
+          <option value="alleen-avond">Alleen avond</option>
+        </select>
+        <select
+          value={filterOpdracht}
+          onChange={(e) => setFilterOpdracht(e.target.value)}
+          className="h-10 rounded-md border border-input bg-background px-2 text-sm"
+          title="Filter op eerste foto-opdracht"
+        >
+          <option value="">Alle opdrachten</option>
+          {Array.from({ length: 25 }, (_, i) => i + 1).map((n) => (
+            <option key={n} value={n}>Opdracht #{n}</option>
+          ))}
         </select>
       </div>
 
@@ -440,12 +457,10 @@ export function GuestListManager() {
               <tr className="bg-muted/50 text-left text-xs text-muted-foreground">
                 <th className="px-3 py-2 font-medium">Naam</th>
                 <th className="px-3 py-2 font-medium">Aanwezigheid</th>
-                <th className="px-3 py-2 font-medium">Groep</th>
-                <th className="px-3 py-2 font-medium">Dag/Avond</th>
                 <th className="px-3 py-2 font-medium">Tafel</th>
                 <th className="px-3 py-2 font-medium">Dieet</th>
-                <th className="px-3 py-2 font-medium">Opdr.</th>
                 <th className="px-3 py-2 font-medium">Relatie</th>
+                <th className="px-3 py-2 font-medium">Naamkaartje</th>
                 <th className="px-3 py-2" />
               </tr>
             </thead>
@@ -590,19 +605,15 @@ export function GuestListManager() {
                         ))}
                       </select>
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{g.groep ?? "—"}</td>
-                    <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
-                      {g.dagdeel === "dag" ? "Dag" : g.dagdeel === "avond" ? "Avond" : "?"}
-                    </td>
                     <td className="px-3 py-2 text-muted-foreground">{g.tafel ?? ""}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-muted-foreground max-w-[10rem] truncate" title={g.dieetwensen ?? undefined}>
                       {g.dieetwensen ?? ""}
                     </td>
-                    <td className="px-3 py-2 text-muted-foreground">
-                      {g.eerste_opdracht ? `#${g.eerste_opdracht}` : ""}
-                    </td>
                     <td className="px-3 py-2 text-muted-foreground max-w-[14rem] truncate" title={[g.relatie, g.opmerkingen].filter(Boolean).join(" · ") || undefined}>
                       {g.relatie ?? ""}
+                    </td>
+                    <td className="px-3 py-2 text-muted-foreground max-w-[14rem] truncate" title={g.naamkaartje ?? undefined}>
+                      {g.naamkaartje ?? ""}
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-0.5 justify-end">

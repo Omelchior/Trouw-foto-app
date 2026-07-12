@@ -37,7 +37,7 @@ export function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
     setLoggingIn(guest.slug)
     try {
       const session = await loginAsGuest(guest.slug)
-      if (guest.aangemeld) {
+      if (guest.aanwezigheid === "aangemeld") {
         onComplete(session.name)
       } else {
         // Nog niet op aanwezig gezet: eerst de aanmeld-bevestiging tonen.

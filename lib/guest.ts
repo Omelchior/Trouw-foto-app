@@ -30,13 +30,23 @@ export interface GuestSession extends UserProfile {
   is_privileged: boolean
 }
 
+/** Aanwezigheidsstatus van een gast; alleen 'aangemeld' geeft toegang. */
+export type Aanwezigheid = 'aangemeld' | 'afwezig' | 'waarschijnlijk' | 'onzeker'
+
+export const AANWEZIGHEID_OPTIES: { value: Aanwezigheid; tekst: string }[] = [
+  { value: 'aangemeld', tekst: 'Aangemeld' },
+  { value: 'waarschijnlijk', tekst: 'Waarschijnlijk' },
+  { value: 'onzeker', tekst: 'Nog onzeker' },
+  { value: 'afwezig', tekst: 'Afwezig' },
+]
+
 /** A single entry in the public guest picker. */
 export interface GuestListEntry {
   slug: string
   name: string
   label: string | null
   role: Role
-  aangemeld: boolean
+  aanwezigheid: Aanwezigheid
 }
 
 export interface UploadCounts {
@@ -94,27 +104,37 @@ export async function getGuestList(): Promise<GuestListEntry[]> {
   const supabase = createClient()
   const { data, error } = await supabase
     .from('guests')
-    .select('slug, name, label, role, aangemeld')
+    .select('slug, name, label, role, aanwezigheid')
     .order('name')
 
   if (!error && data) return data as GuestListEntry[]
 
-  // Fallback zolang migratie 007 (aangemeld-kolom) nog niet is uitgevoerd:
-  // gedraag je als voorheen (iedereen telt als aangemeld, geen bevestigstap).
+  // Fallback zolang migratie 009 (aanwezigheid-kolom) nog niet is uitgevoerd.
+  const oud = await supabase
+    .from('guests')
+    .select('slug, name, label, role, aangemeld')
+    .order('name')
+  if (!oud.error && oud.data) {
+    return oud.data.map((g: { aangemeld?: boolean } & Omit<GuestListEntry, 'aanwezigheid'>) => ({
+      ...g,
+      aanwezigheid: (g.aangemeld ? 'aangemeld' : 'onzeker') as Aanwezigheid,
+    }))
+  }
+
   const legacy = await supabase
     .from('guests')
     .select('slug, name, label, role')
     .order('name')
   if (legacy.error || !legacy.data) return []
-  return legacy.data.map((g) => ({ ...g, aangemeld: true })) as GuestListEntry[]
+  return legacy.data.map((g) => ({ ...g, aanwezigheid: 'aangemeld' as Aanwezigheid })) as GuestListEntry[]
 }
 
 /**
- * Is de ingelogde gast aangemeld (aanwezig)?
- * Geeft null bij onbekend (geen gast-rij of migratie 007 nog niet uitgevoerd);
+ * Aanwezigheidsstatus van de ingelogde gast.
+ * Geeft null bij onbekend (geen gast-rij of migratie nog niet uitgevoerd);
  * behandel null als "aangemeld" zodat de app blijft werken.
  */
-export async function getMijnAanmelding(): Promise<boolean | null> {
+export async function getMijnAanwezigheid(): Promise<Aanwezigheid | null> {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const slug = (user?.email ?? '').split('@')[0]
@@ -122,12 +142,20 @@ export async function getMijnAanmelding(): Promise<boolean | null> {
 
   const { data, error } = await supabase
     .from('guests')
-    .select('aangemeld')
+    .select('aanwezigheid')
     .eq('slug', slug)
     .maybeSingle()
 
-  if (error || !data) return null
-  return (data as { aangemeld: boolean }).aangemeld
+  if (!error && data) return (data as { aanwezigheid: Aanwezigheid }).aanwezigheid
+
+  // Fallback op de oude boolean-kolom.
+  const oud = await supabase
+    .from('guests')
+    .select('aangemeld')
+    .eq('slug', slug)
+    .maybeSingle()
+  if (oud.error || !oud.data) return null
+  return (oud.data as { aangemeld: boolean }).aangemeld ? 'aangemeld' : 'onzeker'
 }
 
 /** Gast meldt zichzelf aan (of af) voor de bruiloft. */
@@ -137,12 +165,12 @@ export async function zetMijnAanmelding(aangemeld: boolean): Promise<void> {
   if (error) throw error
 }
 
-/** Beheer of ceremoniemeester zet de aanmelding van een willekeurige gast. */
-export async function zetAanmeldingVoor(slug: string, aangemeld: boolean): Promise<void> {
+/** Beheer of ceremoniemeester zet de aanwezigheid van een willekeurige gast. */
+export async function zetAanwezigheidVoor(slug: string, status: Aanwezigheid): Promise<void> {
   const supabase = createClient()
-  const { error } = await supabase.rpc('zet_aanmelding_voor', {
+  const { error } = await supabase.rpc('zet_aanwezigheid_voor', {
     p_slug: slug,
-    p_aangemeld: aangemeld,
+    p_status: status,
   })
   if (error) throw error
 }

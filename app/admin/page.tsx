@@ -15,10 +15,13 @@ import {
   QrCode,
   ClipboardList,
   MonitorPlay,
+  BookOpen,
+  Armchair,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { GuestListManager } from "@/components/guest-list-manager"
+import { TafelIndeling } from "@/components/tafel-indeling"
 import { PhotoGrid } from "@/components/photo-grid"
 import { PhotoLightbox } from "@/components/photo-lightbox"
 import { GuestbookFeed } from "@/components/guestbook-feed"
@@ -251,6 +254,10 @@ export default function AdminPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => router.push("/admin/draaiboek")} className="gap-2 bg-transparent">
+              <BookOpen className="w-4 h-4" />
+              <span className="hidden sm:inline">Draaiboek</span>
+            </Button>
             <Button variant="outline" size="sm" onClick={() => router.push("/diavoorstelling")} className="gap-2 bg-transparent">
               <MonitorPlay className="w-4 h-4" />
               <span className="hidden sm:inline">Diavoorstelling</span>
@@ -267,10 +274,14 @@ export default function AdminPage() {
         </header>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsList className="grid w-full grid-cols-4 mb-6">
             <TabsTrigger value="guests" className="gap-2">
               <ClipboardList className="w-4 h-4" />
               <span className="hidden sm:inline">Gastenlijst</span>
+            </TabsTrigger>
+            <TabsTrigger value="tafels" className="gap-2">
+              <Armchair className="w-4 h-4" />
+              <span className="hidden sm:inline">Tafels</span>
             </TabsTrigger>
             <TabsTrigger value="photos" className="gap-2">
               <Images className="w-4 h-4" />
@@ -286,6 +297,10 @@ export default function AdminPage() {
 
           <TabsContent value="guests">
             <GuestListManager />
+          </TabsContent>
+
+          <TabsContent value="tafels">
+            <TafelIndeling />
           </TabsContent>
 
           <TabsContent value="photos">

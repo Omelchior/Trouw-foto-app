@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 import { isAppOpen } from "@/lib/bruiloft"
 
 const openItems = [
-  { href: "/bingo", label: "Bingo", icon: Target },
+  { href: "/bingo", label: "Opdrachten", icon: Target },
   { href: "/selectie", label: "Galerij", icon: Images },
   { href: "/info", label: "Info", icon: Info },
 ]

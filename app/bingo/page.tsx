@@ -120,7 +120,7 @@ export default function BingoPage() {
             <Target className="w-8 h-8 text-primary" />
           </div>
           <h1 className="font-serif text-3xl font-bold text-foreground mb-1">
-            Foto-bingo
+            Foto-opdrachten
           </h1>
           <p className="text-muted-foreground text-sm">
             Maak foto&apos;s om mensen te verbinden. Tik een leeg vakje aan om eraan te werken;

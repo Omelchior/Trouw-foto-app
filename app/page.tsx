@@ -9,7 +9,7 @@ import { Navigation } from "@/components/navigation"
 import { LogoutButton } from "@/components/logout-button"
 import { AuthErrorHandler } from "@/components/auth-error-handler"
 import { WelcomeScreen } from "@/components/welcome-screen"
-import { getGuestSession, getMijnAanmelding, type GuestSession } from "@/lib/guest"
+import { getGuestSession, getMijnAanwezigheid, type GuestSession } from "@/lib/guest"
 import { createClient } from "@/lib/supabase/client"
 import {
   TROUWDATUM_TEKST,
@@ -19,7 +19,7 @@ import {
 } from "@/lib/bruiloft"
 
 const SNELKOPPELINGEN = [
-  { href: "/bingo", label: "Bingo", omschrijving: "Foto-opdrachten", icon: Target },
+  { href: "/bingo", label: "Opdrachten", omschrijving: "Ga op fotomissie", icon: Target },
   { href: "/selectie", label: "Galerij", omschrijving: "Alle foto's", icon: Images },
   { href: "/info", label: "Info", omschrijving: "Programma & meer", icon: Info },
 ]
@@ -49,10 +49,10 @@ export default function HomePage() {
 
     const load = async () => {
       const s = await getGuestSession()
-      const a = s ? await getMijnAanmelding() : null
+      const a = s ? await getMijnAanwezigheid() : null
       if (!active) return
       setSession(s)
-      setAangemeld(a ?? true)
+      setAangemeld(a === null || a === "aangemeld")
     }
 
     load()

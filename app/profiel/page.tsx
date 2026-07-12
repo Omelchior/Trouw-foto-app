@@ -158,7 +158,7 @@ export default function ProfielPage() {
             <CardDescription>
               Dat hoef je niet apart te regelen. Kies op elk apparaat gewoon
               opnieuw je naam op de startpagina en je komt automatisch terug in
-              dit account, met je eigen foto&apos;s en bingo-voortgang.
+              dit account, met je eigen foto&apos;s en opdrachten-voortgang.
             </CardDescription>
           </CardHeader>
           <CardContent>

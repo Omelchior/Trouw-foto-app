@@ -262,7 +262,7 @@ export function PhotoUpload({ onUploadComplete, guestName, userId }: PhotoUpload
           </Button>
           <Button onClick={backToBingo} className="gap-2">
             <Target className="w-4 h-4" />
-            Terug naar bingo
+            Terug naar de opdrachten
           </Button>
         </div>
       </div>
@@ -354,7 +354,7 @@ export function PhotoUpload({ onUploadComplete, guestName, userId }: PhotoUpload
             </div>
             <div className="flex-1">
               <p className="text-xs text-primary font-medium uppercase tracking-wide mb-0.5">
-                Bingo-opdracht
+                Foto-opdracht
               </p>
               <p className="text-sm text-foreground">{challenge.text}</p>
             </div>

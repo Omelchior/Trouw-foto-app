@@ -9,7 +9,7 @@ const _playfair = Playfair_Display({ subsets: ["latin"], variable: '--font-serif
 const _lato = Lato({ subsets: ["latin"], weight: ["300", "400", "700"], variable: '--font-sans' });
 
 export const metadata: Metadata = {
-  title: 'Bruiloft Foto App',
+  title: 'Bruiloft Olaf en Ester',
   description: 'Deel je mooiste momenten van de bruiloft',
     generator: 'v0.app'
 }

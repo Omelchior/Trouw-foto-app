@@ -1,6 +1,6 @@
 "use client"
 
-import { Info, Clock, MapPin, Shirt, Gift, Phone, BedDouble, UtensilsCrossed, Car, PartyPopper, TrainFront, Bird, Luggage, Wine, Sparkles, Ticket, Heart, Cake, Utensils, Music, Home, Hotel, Tent } from "lucide-react"
+import { Info, Clock, MapPin, Shirt, Gift, Phone, BedDouble, UtensilsCrossed, Car, PartyPopper, TrainFront, Bird, Luggage, Wine, Sparkles, Ticket, Heart, Cake, Utensils, Music, Home, Hotel, Tent, Crown } from "lucide-react"
 
 /** Twee trouwringen, in dezelfde lijnstijl als de lucide-iconen. */
 function Ringen({ className }: { className?: string }) {
@@ -75,41 +75,39 @@ const CADEAUTIP = {
   outro: "Er staat een enveloppendoos bij de ingang.",
 }
 
-const CONTACT = {
-  personen: [
-    { naam: "Anton Melchior", telefoon: "06-420 605 57" },
-    { naam: "Sira de Waard", telefoon: "06-294 289 07" },
-  ],
-  toelichting: "Vragen op de dag zelf? Bel of app de ceremoniemeesters.",
-}
-
-const OVERNACHTEN_OPTIES: { naam: string; type: "hotel" | "camping"; url: string }[] = [
-  { naam: "Stayokay Bunnik", type: "hotel", url: "https://www.google.com/maps/search/?api=1&query=Stayokay+Utrecht-Bunnik" },
-  { naam: "Van der Valk Houten", type: "hotel", url: "https://www.google.com/maps/search/?api=1&query=Van+der+Valk+Hotel+Houten" },
-  { naam: "Hotel Mitland", type: "hotel", url: "https://www.google.com/maps/search/?api=1&query=Hotel+Mitland+Utrecht" },
-  { naam: "Camping De Boomgaard", type: "camping", url: "https://www.google.com/maps/search/?api=1&query=Camping+De+Boomgaard+Bunnik" },
-  { naam: "Camping De Vliert", type: "camping", url: "https://www.google.com/maps/search/?api=1&query=Camping+De+Vliert+Bunnik" },
-]
-
 const PRAKTISCH = [
+  {
+    icon: Crown,
+    titel: "Ceremoniemeesters",
+    tekst: "Vragen op de dag zelf? Bel of app de ceremoniemeesters:",
+    contacten: [
+      { naam: "Anton Melchior", telefoon: "06-420 605 57" },
+      { naam: "Sira de Waard", telefoon: "06-294 289 07" },
+    ],
+  },
   {
     icon: UtensilsCrossed,
     titel: "Allergieën & dieetwensen",
     tekst: "Laat dieetwensen of allergieën vóór 31 juli even weten via:",
-    link: null,
     contacten: [
       { naam: "Olaf Melchior", telefoon: "06-250 600 54" },
       { naam: "Ester Doorlag", telefoon: "06-316 428 88" },
     ],
   },
-  {
-    icon: BedDouble,
-    titel: "Overnachten",
-    tekst: "Wij overnachten bij Kasteel Kerckebosch. Wil je daar ook blijven slapen? Reserveer dan zelf even een kamer. De volgende ochtend ontbijten we daar. Gasten die er overnachten kunnen gezellig aanschuiven.",
-    link: { href: "https://www.kasteelkerckebosch.com", label: "kasteelkerckebosch.com" },
-    contacten: null,
-  },
 ]
+
+const OVERNACHTEN = {
+  tekst:
+    "Wij overnachten bij Kasteel Kerckebosch. Wil je daar ook blijven slapen? Reserveer dan zelf even een kamer. De volgende ochtend ontbijten we daar. Gasten die er overnachten kunnen gezellig aanschuiven.",
+  link: { href: "https://www.kasteelkerckebosch.com", label: "kasteelkerckebosch.com" },
+  opties: [
+    { naam: "Stayokay Bunnik", type: "hotel", url: "https://www.google.com/maps/search/?api=1&query=Stayokay+Utrecht-Bunnik" },
+    { naam: "Van der Valk Houten", type: "hotel", url: "https://www.google.com/maps/search/?api=1&query=Van+der+Valk+Hotel+Houten" },
+    { naam: "Hotel Mitland", type: "hotel", url: "https://www.google.com/maps/search/?api=1&query=Hotel+Mitland+Utrecht" },
+    { naam: "Camping De Boomgaard", type: "camping", url: "https://www.google.com/maps/search/?api=1&query=Camping+De+Boomgaard+Bunnik" },
+    { naam: "Camping De Vliert", type: "camping", url: "https://www.google.com/maps/search/?api=1&query=Camping+De+Vliert+Bunnik" },
+  ],
+}
 
 export default function InfoPage() {
   return (
@@ -274,22 +272,8 @@ export default function InfoPage() {
             <CardTitle className="flex items-center gap-2 font-serif text-xl">
               <Phone className="w-5 h-5 text-primary" /> Contact & praktisch
             </CardTitle>
-            <CardDescription>{CONTACT.toelichting}</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              {CONTACT.personen.map((cm) => (
-                <a
-                  key={cm.telefoon}
-                  href={`tel:${cm.telefoon.replace(/[-\s]/g, "")}`}
-                  className="flex items-center justify-between rounded-lg border border-border p-3 hover:bg-muted transition-colors"
-                >
-                  <span className="font-medium text-foreground">{cm.naam}</span>
-                  <span className="text-sm text-primary">{cm.telefoon}</span>
-                </a>
-              ))}
-            </div>
-
+          <CardContent className="space-y-5">
             {PRAKTISCH.map((item) => {
               const Icon = item.icon
               return (
@@ -297,63 +281,65 @@ export default function InfoPage() {
                   <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                     <Icon className="w-4 h-4 text-primary" />
                   </div>
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="font-medium text-foreground">{item.titel}</p>
                     <p className="text-sm text-muted-foreground">{item.tekst}</p>
-                    {item.contacten && (
-                      <div className="mt-2 space-y-2">
-                        {item.contacten.map((c) => (
-                          <a
-                            key={c.telefoon}
-                            href={`tel:${c.telefoon.replace(/[-\s]/g, "")}`}
-                            className="flex items-center justify-between rounded-lg border border-border p-3 hover:bg-muted transition-colors"
-                          >
-                            <span className="font-medium text-foreground">{c.naam}</span>
-                            <span className="text-sm text-primary">{c.telefoon}</span>
-                          </a>
-                        ))}
-                      </div>
-                    )}
-                    {item.link && (
-                      <a
-                        href={item.link.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm font-medium text-primary hover:underline"
-                      >
-                        {item.link.label} →
-                      </a>
-                    )}
-                    {item.titel === "Overnachten" && (
-                      <div className="mt-3 space-y-2">
-                        <p className="text-sm font-medium text-foreground">
-                          Andere plekken in de buurt:
-                        </p>
-                        {OVERNACHTEN_OPTIES.map((optie) => {
-                          const OptieIcon = optie.type === "camping" ? Tent : Hotel
-                          return (
-                            <a
-                              key={optie.naam}
-                              href={optie.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted transition-colors"
-                            >
-                              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                <OptieIcon className="w-4 h-4 text-primary" />
-                              </div>
-                              <span className="text-sm font-medium text-foreground">
-                                {optie.naam}
-                              </span>
-                            </a>
-                          )
-                        })}
-                      </div>
-                    )}
+                    <div className="mt-2 space-y-2">
+                      {item.contacten.map((c) => (
+                        <a
+                          key={c.telefoon}
+                          href={`tel:${c.telefoon.replace(/[-\s]/g, "")}`}
+                          className="flex items-center justify-between rounded-lg border border-border p-3 hover:bg-muted transition-colors"
+                        >
+                          <span className="font-medium text-foreground">{c.naam}</span>
+                          <span className="text-sm text-primary">{c.telefoon}</span>
+                        </a>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )
             })}
+          </CardContent>
+        </Card>
+
+        {/* Overnachten */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 font-serif text-xl">
+              <BedDouble className="w-5 h-5 text-primary" /> Overnachten
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">{OVERNACHTEN.tekst}</p>
+            <a
+              href={OVERNACHTEN.link.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block text-sm font-medium text-primary hover:underline"
+            >
+              {OVERNACHTEN.link.label} →
+            </a>
+            <p className="text-sm font-medium text-foreground">Andere plekken in de buurt:</p>
+            <div className="space-y-2">
+              {OVERNACHTEN.opties.map((optie) => {
+                const OptieIcon = optie.type === "camping" ? Tent : Hotel
+                return (
+                  <a
+                    key={optie.naam}
+                    href={optie.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <OptieIcon className="w-4 h-4 text-primary" />
+                    </div>
+                    <span className="text-sm font-medium text-foreground">{optie.naam}</span>
+                  </a>
+                )
+              })}
+            </div>
           </CardContent>
         </Card>
       </div>

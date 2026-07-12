@@ -1,6 +1,6 @@
 "use client"
 
-import { Info, Clock, MapPin, Shirt, Gift, Phone, BedDouble, UtensilsCrossed, Car, PartyPopper, TrainFront, Bird, Luggage, Wine, Sparkles, Ticket, Heart, Cake, Utensils, Music, Home } from "lucide-react"
+import { Info, Clock, MapPin, Shirt, Gift, Phone, BedDouble, UtensilsCrossed, Car, PartyPopper, TrainFront, Bird, Luggage, Wine, Sparkles, Ticket, Heart, Cake, Utensils, Music, Home, Hotel, Tent } from "lucide-react"
 
 /** Twee trouwringen, in dezelfde lijnstijl als de lucide-iconen. */
 function Ringen({ className }: { className?: string }) {
@@ -76,12 +76,22 @@ const CADEAUTIP = {
 }
 
 const CONTACT = {
-  ceremoniemeesters: [
+  personen: [
     { naam: "Anton Melchior", telefoon: "06-420 605 57" },
     { naam: "Sira de Waard", telefoon: "06-294 289 07" },
+    { naam: "Olaf Melchior", telefoon: "06-250 600 54" },
+    { naam: "Ester Doorlag", telefoon: "06-316 428 88" },
   ],
   toelichting: "Vragen op de dag zelf? Bel of app de ceremoniemeesters.",
 }
+
+const OVERNACHTEN_OPTIES: { naam: string; type: "hotel" | "camping"; url: string }[] = [
+  { naam: "Stayokay Bunnik", type: "hotel", url: "https://www.google.com/maps/search/?api=1&query=Stayokay+Utrecht-Bunnik" },
+  { naam: "Van der Valk Utrecht", type: "hotel", url: "https://www.google.com/maps/search/?api=1&query=Van+der+Valk+Hotel+Utrecht" },
+  { naam: "Hotel Mitland", type: "hotel", url: "https://www.google.com/maps/search/?api=1&query=Hotel+Mitland+Utrecht" },
+  { naam: "Camping De Boomgaard", type: "camping", url: "https://www.google.com/maps/search/?api=1&query=Camping+De+Boomgaard+Bunnik" },
+  { naam: "Camping De Vliert", type: "camping", url: "https://www.google.com/maps/search/?api=1&query=Camping+De+Vliert+Bunnik" },
+]
 
 const PRAKTISCH = [
   {
@@ -265,7 +275,7 @@ export default function InfoPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              {CONTACT.ceremoniemeesters.map((cm) => (
+              {CONTACT.personen.map((cm) => (
                 <a
                   key={cm.telefoon}
                   href={`tel:${cm.telefoon.replace(/[-\s]/g, "")}`}
@@ -296,6 +306,32 @@ export default function InfoPage() {
                       >
                         {item.link.label} →
                       </a>
+                    )}
+                    {item.titel === "Overnachten" && (
+                      <div className="mt-3 space-y-2">
+                        <p className="text-sm font-medium text-foreground">
+                          Andere plekken in de buurt:
+                        </p>
+                        {OVERNACHTEN_OPTIES.map((optie) => {
+                          const OptieIcon = optie.type === "camping" ? Tent : Hotel
+                          return (
+                            <a
+                              key={optie.naam}
+                              href={optie.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted transition-colors"
+                            >
+                              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                <OptieIcon className="w-4 h-4 text-primary" />
+                              </div>
+                              <span className="text-sm font-medium text-foreground">
+                                {optie.naam}
+                              </span>
+                            </a>
+                          )
+                        })}
+                      </div>
                     )}
                   </div>
                 </div>

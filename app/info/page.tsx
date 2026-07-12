@@ -87,7 +87,7 @@ const CONTACT = {
 
 const OVERNACHTEN_OPTIES: { naam: string; type: "hotel" | "camping"; url: string }[] = [
   { naam: "Stayokay Bunnik", type: "hotel", url: "https://www.google.com/maps/search/?api=1&query=Stayokay+Utrecht-Bunnik" },
-  { naam: "Van der Valk Utrecht", type: "hotel", url: "https://www.google.com/maps/search/?api=1&query=Van+der+Valk+Hotel+Utrecht" },
+  { naam: "Van der Valk Houten", type: "hotel", url: "https://www.google.com/maps/search/?api=1&query=Van+der+Valk+Hotel+Houten" },
   { naam: "Hotel Mitland", type: "hotel", url: "https://www.google.com/maps/search/?api=1&query=Hotel+Mitland+Utrecht" },
   { naam: "Camping De Boomgaard", type: "camping", url: "https://www.google.com/maps/search/?api=1&query=Camping+De+Boomgaard+Bunnik" },
   { naam: "Camping De Vliert", type: "camping", url: "https://www.google.com/maps/search/?api=1&query=Camping+De+Vliert+Bunnik" },

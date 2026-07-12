@@ -63,7 +63,7 @@ const DRESSCODE = {
 
 const CADEAUTIP = {
   intro:
-    "Jullie aanwezigheid is het mooiste cadeau. Willen jullie ons toch verwennen? Wij sparen liever herinneringen dan spullen. Met een bijdrage aan één van deze belevenissen maken jullie ons heel blij:",
+    "Jullie aanwezigheid is het mooiste cadeau. Willen jullie ons toch verwennen? Wij sparen voor een mooie serviesset. Daarnaast sparen we liever herinneringen dan spullen. Met een bijdrage aan één van deze belevenissen maken jullie ons dus ook heel blij:",
   belevenissen: [
     { icon: Bird, tekst: "Vogelexcursie of natuurwandeling met gids" },
     { icon: Luggage, tekst: "Weekendje weg in Nederland" },
@@ -72,8 +72,7 @@ const CADEAUTIP = {
     { icon: Sparkles, tekst: "Sauna- of wellnessdag" },
     { icon: Ticket, tekst: "Tickets voor een voorstelling" },
   ],
-  outro:
-    "Daarnaast sparen we ook voor een mooie serviesset. Er staat een enveloppendoos bij de ingang.",
+  outro: "Er staat een enveloppendoos bij de ingang.",
 }
 
 const CONTACT = {

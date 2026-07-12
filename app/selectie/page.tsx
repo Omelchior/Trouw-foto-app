@@ -5,7 +5,7 @@ import { Images, Loader2 } from "lucide-react"
 import { PhotoGrid } from "@/components/photo-grid"
 import { PhotoLightbox } from "@/components/photo-lightbox"
 import { Navigation } from "@/components/navigation"
-import { AdminAccessButton } from "@/components/admin-access-button"
+import { LogoutButton } from "@/components/logout-button"
 import { createClient } from "@/lib/supabase/client"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -72,7 +72,7 @@ export default function SelectiePage() {
     <main className="min-h-screen pb-20">
       {/* Admin access button - top right */}
       <div className="absolute top-4 right-4 z-10">
-        <AdminAccessButton />
+        <LogoutButton />
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-8">

@@ -5,7 +5,7 @@ import { MessageCircleQuestion, Loader2 } from "lucide-react"
 import { QaForm } from "@/components/qa-form"
 import { QaFeed, type QaEntry } from "@/components/qa-feed"
 import { Navigation } from "@/components/navigation"
-import { AdminAccessButton } from "@/components/admin-access-button"
+import { LogoutButton } from "@/components/logout-button"
 import { createClient } from "@/lib/supabase/client"
 
 export default function QaPage() {
@@ -48,7 +48,7 @@ export default function QaPage() {
   return (
     <main className="min-h-screen pb-24">
       <div className="absolute top-4 right-4 z-10">
-        <AdminAccessButton />
+        <LogoutButton />
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-8">

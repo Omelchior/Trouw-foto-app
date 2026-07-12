@@ -6,7 +6,7 @@ import { Heart, Shield, Target, Images, Info, Lock, Clock, ChevronRight } from "
 import { Button } from "@/components/ui/button"
 import { PhotoUpload } from "@/components/photo-upload"
 import { Navigation } from "@/components/navigation"
-import { AdminAccessButton } from "@/components/admin-access-button"
+import { LogoutButton } from "@/components/logout-button"
 import { AuthErrorHandler } from "@/components/auth-error-handler"
 import { WelcomeScreen } from "@/components/welcome-screen"
 import { getGuestSession, getMijnAanmelding, type GuestSession } from "@/lib/guest"
@@ -105,7 +105,7 @@ export default function HomePage() {
         </div>
       )}
       <div className="absolute top-4 right-4 z-10">
-        <AdminAccessButton />
+        <LogoutButton />
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-8 space-y-8">

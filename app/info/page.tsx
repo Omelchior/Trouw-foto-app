@@ -20,7 +20,7 @@ function Ringen({ className }: { className?: string }) {
   )
 }
 import { Navigation } from "@/components/navigation"
-import { AdminAccessButton } from "@/components/admin-access-button"
+import { LogoutButton } from "@/components/logout-button"
 import { PROGRAMMA, TROUWDATUM_TEKST } from "@/lib/bruiloft"
 import {
   Card,
@@ -112,7 +112,7 @@ export default function InfoPage() {
   return (
     <main className="min-h-screen pb-24">
       <div className="absolute top-4 right-4 z-10">
-        <AdminAccessButton />
+        <LogoutButton />
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-8 space-y-6">

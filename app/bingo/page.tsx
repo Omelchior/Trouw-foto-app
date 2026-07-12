@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Target, Heart, Loader2 } from "lucide-react"
 import { Navigation } from "@/components/navigation"
-import { AdminAccessButton } from "@/components/admin-access-button"
+import { LogoutButton } from "@/components/logout-button"
 import { BingoBoard, type BingoPhoto } from "@/components/bingo-board"
 import { WelcomeScreen } from "@/components/welcome-screen"
 import { getGuestSession, CHALLENGES, type GuestSession } from "@/lib/guest"
@@ -111,7 +111,7 @@ export default function BingoPage() {
   return (
     <main className="min-h-screen pb-24">
       <div className="absolute top-4 right-4 z-10">
-        <AdminAccessButton />
+        <LogoutButton />
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-8">

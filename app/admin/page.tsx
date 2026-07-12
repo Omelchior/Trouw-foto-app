@@ -13,7 +13,6 @@ import {
   CheckSquare,
   Square,
   QrCode,
-  MessageCircleQuestion,
   ClipboardList,
   MonitorPlay,
 } from "lucide-react"
@@ -23,7 +22,6 @@ import { GuestListManager } from "@/components/guest-list-manager"
 import { PhotoGrid } from "@/components/photo-grid"
 import { PhotoLightbox } from "@/components/photo-lightbox"
 import { GuestbookFeed } from "@/components/guestbook-feed"
-import { QaFeed, type QaEntry } from "@/components/qa-feed"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import {
@@ -59,13 +57,12 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [photos, setPhotos] = useState<Photo[]>([])
   const [guestbookEntries, setGuestbookEntries] = useState<GuestbookEntry[]>([])
-  const [qaEntries, setQaEntries] = useState<QaEntry[]>([])
   const [lightboxPhoto, setLightboxPhoto] = useState<Photo | null>(null)
   const [activeTab, setActiveTab] = useState("guests")
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [itemToDelete, setItemToDelete] = useState<{ type: "photo" | "guestbook" | "qa", id: string } | null>(null)
+  const [itemToDelete, setItemToDelete] = useState<{ type: "photo" | "guestbook", id: string } | null>(null)
 
   const checkAuth = useCallback(async () => {
     const supabase = createClient()
@@ -112,22 +109,6 @@ export default function AdminPage() {
     }
   }
 
-  // Admins only see public questions (is_secret = false)
-  const fetchQa = async () => {
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from("qa_questions")
-      .select("id, guest_name, question, is_secret, answer, answered_at, created_at")
-      .eq("is_secret", false)
-      .order("created_at", { ascending: false })
-
-    if (error) {
-      console.error("Error fetching Q&A:", error)
-    } else {
-      setQaEntries((data || []) as QaEntry[])
-    }
-  }
-
   useEffect(() => {
     checkAuth()
   }, [checkAuth])
@@ -137,7 +118,6 @@ export default function AdminPage() {
 
     fetchPhotos()
     fetchGuestbook()
-    fetchQa()
 
     const supabase = createClient()
 
@@ -151,15 +131,9 @@ export default function AdminPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "guestbook_entries" }, () => fetchGuestbook())
       .subscribe()
 
-    const qaChannel = supabase
-      .channel("admin-qa-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "qa_questions" }, () => fetchQa())
-      .subscribe()
-
     return () => {
       supabase.removeChannel(photosChannel)
       supabase.removeChannel(guestbookChannel)
-      supabase.removeChannel(qaChannel)
     }
   }, [isAuthenticated])
 
@@ -177,11 +151,6 @@ export default function AdminPage() {
 
   const handleDeleteGuestbook = async (id: string) => {
     setItemToDelete({ type: "guestbook", id })
-    setDeleteDialogOpen(true)
-  }
-
-  const handleDeleteQa = async (id: string) => {
-    setItemToDelete({ type: "qa", id })
     setDeleteDialogOpen(true)
   }
 
@@ -204,11 +173,6 @@ export default function AdminPage() {
         if (error) throw error
         toast.success("Bericht verwijderd")
         fetchGuestbook()
-      } else if (itemToDelete.type === "qa") {
-        const { error } = await supabase.from("qa_questions").delete().eq("id", itemToDelete.id)
-        if (error) throw error
-        toast.success("Vraag verwijderd")
-        fetchQa()
       }
     } catch (error) {
       console.error("Delete error:", error)
@@ -270,7 +234,6 @@ export default function AdminPage() {
   if (!isAuthenticated) return null
 
   const selectedPhotos = photos.filter(p => p.is_selected)
-  const openQaCount = qaEntries.filter(q => !q.answer).length
 
   return (
     <main className="min-h-screen pb-8">
@@ -281,7 +244,7 @@ export default function AdminPage() {
               <Shield className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h1 className="font-serif text-xl font-bold">Admin Dashboard</h1>
+              <h1 className="font-serif text-xl font-bold">Beheer Dashboard</h1>
               <p className="text-sm text-muted-foreground">
                 {photos.length} foto's, {selectedPhotos.length} geselecteerd
               </p>
@@ -304,7 +267,7 @@ export default function AdminPage() {
         </header>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="guests" className="gap-2">
               <ClipboardList className="w-4 h-4" />
               <span className="hidden sm:inline">Gastenlijst</span>
@@ -318,11 +281,6 @@ export default function AdminPage() {
               <MessageCircle className="w-4 h-4" />
               <span className="hidden sm:inline">Gastenboek</span>
               <span>({guestbookEntries.length})</span>
-            </TabsTrigger>
-            <TabsTrigger value="qa" className="gap-2">
-              <MessageCircleQuestion className="w-4 h-4" />
-              <span className="hidden sm:inline">Vragen</span>
-              <span>({openQaCount})</span>
             </TabsTrigger>
           </TabsList>
 
@@ -381,29 +339,6 @@ export default function AdminPage() {
             />
           </TabsContent>
 
-          <TabsContent value="qa">
-            <p className="text-xs text-muted-foreground mb-3">
-              Alleen openbare vragen worden hier getoond. Vragen die gemarkeerd zijn als &quot;geheim voor het bruidspaar&quot; zijn alleen zichtbaar voor ceremoniemeesters.
-            </p>
-            <div className="space-y-3">
-              <QaFeed entries={qaEntries} emptyText="Nog geen openbare vragen" />
-              {qaEntries.length > 0 && (
-                <div className="text-xs text-muted-foreground pt-2 border-t">
-                  Vragen verwijderen?{" "}
-                  {qaEntries.map(e => (
-                    <button
-                      key={e.id}
-                      onClick={() => handleDeleteQa(e.id)}
-                      className="inline-flex items-center gap-1 ml-2 text-destructive hover:underline"
-                    >
-                      <Trash2 className="w-3 h-3" /> #{e.id.slice(0, 4)}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </TabsContent>
-
         </Tabs>
       </div>
 
@@ -421,7 +356,6 @@ export default function AdminPage() {
             <AlertDialogDescription>
               {itemToDelete?.type === "photo" && "Deze foto wordt permanent verwijderd."}
               {itemToDelete?.type === "guestbook" && "Dit bericht wordt permanent verwijderd."}
-              {itemToDelete?.type === "qa" && "Deze vraag wordt permanent verwijderd."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

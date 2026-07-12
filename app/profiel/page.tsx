@@ -107,7 +107,7 @@ export default function ProfielPage() {
 
         {/* Beheer-ingang voor admins / ceremoniemeesters */}
         {(profile.role === "admin" || profile.role === "ceremony_master") && (
-          <Link href={profile.role === "admin" ? "/admin" : "/ceremoniemeester"} className="block">
+          <Link href="/admin" className="block">
             <Card className="hover:bg-muted/50 transition-colors">
               <CardContent className="flex items-center gap-3 p-4">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -116,7 +116,7 @@ export default function ProfielPage() {
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">Naar het beheer</p>
                   <p className="text-xs text-muted-foreground">
-                    {profile.role === "admin" ? "Admin dashboard" : "Ceremoniemeester"} (vraagt om het beheer-wachtwoord)
+                    Beheer dashboard (vraagt om het beheer-wachtwoord)
                   </p>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />

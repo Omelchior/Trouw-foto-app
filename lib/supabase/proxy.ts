@@ -34,10 +34,9 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname
 
+  // Beheer-routes: admins én ceremoniemeesters zien en kunnen hetzelfde.
   const isAdminRoute =
     path.startsWith('/admin') && !path.startsWith('/admin/login')
-  const isCmRoute =
-    path.startsWith('/ceremoniemeester') && !path.startsWith('/ceremoniemeester/login')
 
   const redirectTo = (pathname: string) => {
     const url = request.nextUrl.clone()
@@ -55,7 +54,7 @@ export async function updateSession(request: NextRequest) {
 
   // Role-gated routes: need a real (non-anonymous) user, the right role, AND
   // the beheer password unlock.
-  if (isAdminRoute || isCmRoute) {
+  if (isAdminRoute) {
     const isAnon = (user as { is_anonymous?: boolean } | null)?.is_anonymous === true
 
     // Not logged in → pick your name on the homepage first.
@@ -71,16 +70,13 @@ export async function updateSession(request: NextRequest) {
 
     const role = profile?.role as string | undefined
 
-    if (isAdminRoute && role !== 'admin') {
-      return redirectTo('/')
-    }
-    if (isCmRoute && role !== 'ceremony_master' && role !== 'admin') {
+    if (role !== 'admin' && role !== 'ceremony_master') {
       return redirectTo('/')
     }
 
     // Right role but the beheer area is still locked → ask for the password.
     if (!beheerValid) {
-      return redirectTo(isCmRoute ? '/ceremoniemeester/login' : '/admin/login')
+      return redirectTo('/admin/login')
     }
   }
 
@@ -111,18 +107,8 @@ export async function updateSession(request: NextRequest) {
       .select('role')
       .eq('user_id', user.id)
       .maybeSingle()
-    if (profile?.role === 'admin') {
+    if (profile?.role === 'admin' || profile?.role === 'ceremony_master') {
       return redirectTo('/admin')
-    }
-  }
-  if (path === '/ceremoniemeester/login' && user && beheerValid) {
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('role')
-      .eq('user_id', user.id)
-      .maybeSingle()
-    if (profile?.role === 'ceremony_master' || profile?.role === 'admin') {
-      return redirectTo('/ceremoniemeester')
     }
   }
 

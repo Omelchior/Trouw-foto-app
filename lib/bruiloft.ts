@@ -15,7 +15,6 @@ export function isAppOpen(): boolean {
 export const GESLOTEN_VOOR_TROUWDAG = [
   "/bingo",
   "/selectie",
-  "/qa",
   "/gastenboek",
   "/diavoorstelling",
 ]

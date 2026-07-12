@@ -91,7 +91,7 @@ export default function HomePage() {
 
       {session.is_privileged && (
         <div className="absolute top-4 left-4 z-10">
-          <Link href={session.role === "admin" ? "/admin" : "/ceremoniemeester"}>
+          <Link href="/admin">
             <Button
               variant="ghost"
               size="sm"

@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect } from "react"
 import Link from "next/link"
-import { Heart, Shield, Target, Images, Info, Lock, Clock, ChevronRight } from "lucide-react"
+import { Heart, Shield, Target, Images, Info, Lock, Clock, ChevronRight, MapPin, Shirt, Gift } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PhotoUpload } from "@/components/photo-upload"
 import { Navigation } from "@/components/navigation"
@@ -19,9 +19,17 @@ import {
 } from "@/lib/bruiloft"
 
 const SNELKOPPELINGEN = [
-  { href: "/bingo", label: "Bingo", omschrijving: "Speel mee", icon: Target },
+  { href: "/bingo", label: "Bingo", omschrijving: "Foto-opdrachten", icon: Target },
   { href: "/selectie", label: "Galerij", omschrijving: "Alle foto's", icon: Images },
   { href: "/info", label: "Info", omschrijving: "Programma & meer", icon: Info },
+]
+
+/** Voorproefje van de infopagina op het vergrendelde startscherm. */
+const INFO_HIGHLIGHTS = [
+  { icon: Clock, label: "Het programma" },
+  { icon: MapPin, label: "De route naar Mereveld" },
+  { icon: Shirt, label: "De dresscode-kleuren" },
+  { icon: Gift, label: "Onze cadeautip" },
 ]
 
 export default function HomePage() {
@@ -203,20 +211,31 @@ export default function HomePage() {
 
             <Link
               href="/info"
-              className="flex items-center gap-4 rounded-xl border border-border bg-card p-5 hover:bg-muted/60 transition-colors"
+              className="block rounded-xl border border-border bg-card p-5 hover:bg-muted/60 transition-colors"
             >
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                <Info className="w-6 h-6 text-primary" />
+              <p className="font-serif text-lg font-bold text-foreground mb-1">
+                Nieuwsgierig naar de grote dag? ✨
+              </p>
+              <p className="text-sm text-muted-foreground mb-4">
+                Neem alvast een kijkje, dan weet je precies wat je te wachten
+                staat:
+              </p>
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                {INFO_HIGHLIGHTS.map((h) => {
+                  const HIcon = h.icon
+                  return (
+                    <div key={h.label} className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <HIcon className="w-3.5 h-3.5 text-primary" />
+                      </div>
+                      <span className="text-sm text-foreground">{h.label}</span>
+                    </div>
+                  )
+                })}
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="font-serif text-lg font-bold text-foreground">
-                  Bekijk alvast alle info
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Programma, locatie, dresscode, cadeautip en meer
-                </p>
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+              <span className="inline-flex items-center gap-1 text-sm font-medium text-primary">
+                Ontdek het hier <ChevronRight className="w-4 h-4" />
+              </span>
             </Link>
 
             <div className="rounded-xl bg-muted p-5 text-center space-y-2">
@@ -227,8 +246,9 @@ export default function HomePage() {
                 De rest van de app opent op de trouwdag
               </p>
               <p className="text-sm text-muted-foreground">
-                Vanaf {TROUWDATUM_TEKST.toLowerCase()} kun je hier foto&apos;s
-                delen, foto-bingo spelen en de galerij bekijken. Tot dan!
+                Vanaf {TROUWDATUM_TEKST.toLowerCase()} deel je hier je mooiste
+                foto&apos;s, ga je op pad met leuke foto-opdrachten en bewonder
+                je alle kiekjes van iedereen in de galerij. Tot dan!
               </p>
             </div>
           </>

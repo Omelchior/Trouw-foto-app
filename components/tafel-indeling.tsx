@@ -167,6 +167,16 @@ export function TafelIndeling() {
 
   useEffect(() => {
     fetchGasten()
+    // Live meelezen: dieetwensen/tafels die in de gastenlijst worden aangepast
+    // verschijnen meteen hier.
+    const supabase = createClient()
+    const channel = supabase
+      .channel("tafel-guests-changes")
+      .on("postgres_changes", { event: "*", schema: "public", table: "guests" }, () => fetchGasten())
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [])
 
   const dagGasten = useMemo(
@@ -222,7 +232,8 @@ export function TafelIndeling() {
   }
 
   const zonderTafel = dagGasten.filter((g) => !g.tafel)
-  const dieetGasten = dagGasten
+  // Alle gasten met een ingevuld dieet — ook avondgasten (die niet aan tafel zitten).
+  const dieetGasten = gasten
     .filter((g) => g.dieetwensen)
     .sort((a, b) => (a.tafel ?? 99) - (b.tafel ?? 99) || a.name.localeCompare(b.name))
 
@@ -285,14 +296,16 @@ export function TafelIndeling() {
             <UtensilsCrossed className="w-4 h-4" /> Dieetwensen &amp; allergieën
           </div>
           {dieetGasten.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Geen dieetwensen bij de daggasten.</p>
+            <p className="text-sm text-muted-foreground">Nog geen dieetwensen ingevuld in de gastenlijst.</p>
           ) : (
             <ul className="space-y-1 text-sm">
               {dieetGasten.map((g) => (
                 <li key={g.id} className="flex items-center justify-between gap-3">
                   <span>
                     <span className="font-medium">{g.name}</span>
-                    {g.tafel && <span className="text-muted-foreground"> · tafel {g.tafel}</span>}
+                    <span className="text-muted-foreground">
+                      {g.tafel ? ` · tafel ${g.tafel}` : g.dagdeel === "avond" ? " · avondgast" : ""}
+                    </span>
                   </span>
                   <span className="text-amber-700 dark:text-amber-400">{g.dieetwensen}</span>
                 </li>

@@ -158,6 +158,26 @@ export async function getMijnAanwezigheid(): Promise<Aanwezigheid | null> {
   return (oud.data as { aangemeld: boolean }).aangemeld ? 'aangemeld' : 'onzeker'
 }
 
+/**
+ * Is de ingelogde gast een dag- of avondgast?
+ * Geeft null bij onbekend (geen gast-rij of dagdeel niet ingevuld).
+ */
+export async function getMijnDagdeel(): Promise<'dag' | 'avond' | null> {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const slug = (user?.email ?? '').split('@')[0]
+  if (!slug) return null
+
+  const { data, error } = await supabase
+    .from('guests')
+    .select('dagdeel')
+    .eq('slug', slug)
+    .maybeSingle()
+
+  if (error || !data) return null
+  return (data as { dagdeel: 'dag' | 'avond' | null }).dagdeel
+}
+
 /** Gast meldt zichzelf aan (of af) voor de bruiloft. */
 export async function zetMijnAanmelding(aangemeld: boolean): Promise<void> {
   const supabase = createClient()

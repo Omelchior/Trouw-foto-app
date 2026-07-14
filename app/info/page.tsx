@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Info, Clock, MapPin, Shirt, Gift, Phone, BedDouble, UtensilsCrossed, Car, PartyPopper, TrainFront, Bird, Luggage, Wine, Sparkles, Ticket, Heart, Cake, Utensils, Music, Home, Hotel, Tent, Crown } from "lucide-react"
 
 /** Twee trouwringen, in dezelfde lijnstijl als de lucide-iconen. */
@@ -21,7 +22,8 @@ function Ringen({ className }: { className?: string }) {
 }
 import { Navigation } from "@/components/navigation"
 import { LogoutButton } from "@/components/logout-button"
-import { PROGRAMMA, TROUWDATUM_TEKST } from "@/lib/bruiloft"
+import { PROGRAMMA, PROGRAMMA_AVOND, TROUWDATUM_TEKST } from "@/lib/bruiloft"
+import { getMijnDagdeel } from "@/lib/guest"
 import {
   Card,
   CardContent,
@@ -110,6 +112,16 @@ const OVERNACHTEN = {
 }
 
 export default function InfoPage() {
+  // Avondgasten zien hun eigen programma; zolang het dagdeel onbekend is
+  // tonen we het volledige programma met de avondgasten-notitie.
+  const [dagdeel, setDagdeel] = useState<"dag" | "avond" | null>(null)
+
+  useEffect(() => {
+    getMijnDagdeel().then(setDagdeel)
+  }, [])
+
+  const programma = dagdeel === "avond" ? PROGRAMMA_AVOND : PROGRAMMA
+
   return (
     <main className="min-h-screen pb-24">
       <div className="absolute top-4 right-4 z-10">
@@ -136,11 +148,13 @@ export default function InfoPage() {
             <CardTitle className="flex items-center gap-2 font-serif text-xl">
               <Clock className="w-5 h-5 text-primary" /> Programma
             </CardTitle>
-            <CardDescription>Zo ziet de dag eruit</CardDescription>
+            <CardDescription>
+              {dagdeel === "avond" ? "Zo ziet jullie avond eruit" : "Zo ziet de dag eruit"}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <ol className="space-y-4">
-              {PROGRAMMA.map((item) => {
+              {programma.map((item) => {
                 const Icon = PROGRAMMA_ICONS[item.titel] ?? Clock
                 return (
                   <li key={item.tijd} className="flex items-center gap-3">
@@ -158,10 +172,12 @@ export default function InfoPage() {
                 )
               })}
             </ol>
-            <div className="mt-5 flex items-start gap-2 rounded-lg bg-muted p-3">
-              <PartyPopper className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
-              <p className="text-sm text-muted-foreground">{AVONDGASTEN}</p>
-            </div>
+            {dagdeel === null && (
+              <div className="mt-5 flex items-start gap-2 rounded-lg bg-muted p-3">
+                <PartyPopper className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+                <p className="text-sm text-muted-foreground">{AVONDGASTEN}</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

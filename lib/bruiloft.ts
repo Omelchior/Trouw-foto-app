@@ -37,6 +37,13 @@ export const PROGRAMMA: Programmapunt[] = [
   { tijd: "00:30", titel: "Einde", omschrijving: "Wel thuis!", uren: 24.5 },
 ]
 
+/** Het programma zoals avondgasten het zien. */
+export const PROGRAMMA_AVOND: Programmapunt[] = [
+  { tijd: "20:00", titel: "Aanvang", omschrijving: "Ontvangst op Mereveld", uren: 20 },
+  { tijd: "20:30", titel: "Feest", omschrijving: "Met een drankje in de hand de voeten van de vloer", uren: 20.5 },
+  { tijd: "00:30", titel: "Einde", omschrijving: "Wel thuis!", uren: 24.5 },
+]
+
 /** "Nog X dagen", "Vandaag is het zover!" of null (na de bruiloft). */
 export function countdownTekst(): string | null {
   const trouwdag = new Date(2026, 7, 21)

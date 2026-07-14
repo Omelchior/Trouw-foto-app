@@ -65,7 +65,9 @@ const DRESSCODE = {
 
 const CADEAUTIP = {
   intro:
-    "Jullie aanwezigheid is voor ons het mooiste cadeau. Willen jullie ons toch graag verwennen? Wij sparen voor een mooie serviesset, maar worden ook heel blij van bijzondere ervaringen samen. Met een bijdrage aan één van deze belevenissen maken jullie ons dan ook ontzettend blij:",
+    "Jullie aanwezigheid is voor ons het mooiste cadeau. Willen jullie ons toch graag verwennen? Wij sparen voor een mooie serviesset, een bijdrage hieraan wordt gewaardeerd.",
+  intro2:
+    "Toch liever iets anders geven? Wij worden ook heel blij van bijzondere ervaringen samen. Met één van deze belevenissen, of een bijdrage hieraan, maken jullie ons ook ontzettend blij:",
   belevenissen: [
     { icon: Bird, tekst: "Vogelexcursie of natuurwandeling met gids" },
     { icon: Luggage, tekst: "Weekendje weg in Nederland" },
@@ -265,6 +267,7 @@ export default function InfoPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">{CADEAUTIP.intro}</p>
+            <p className="text-sm text-muted-foreground">{CADEAUTIP.intro2}</p>
             <ul className="space-y-2">
               {CADEAUTIP.belevenissen.map((item) => {
                 const Icon = item.icon

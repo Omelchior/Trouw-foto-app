@@ -15,6 +15,45 @@ interface TafelGast {
 
 const TAFELS = [1, 2, 3, 4, 5]
 
+// Opstelling als een dobbelsteen met 5 ogen (3x3 grid):
+// tafel 1 linksboven, 3 rechtsboven, 2 in het midden, 4 linksonder, 5 rechtsonder.
+const DOBBELSTEEN_POSITIE: Record<number, string> = {
+  1: "col-start-1 row-start-1",
+  3: "col-start-3 row-start-1",
+  2: "col-start-2 row-start-2",
+  4: "col-start-1 row-start-3",
+  5: "col-start-3 row-start-3",
+}
+
+/** Eén ronde tafel met de gasten er als naamkaartjes omheen. */
+function RondeTafel({ nummer, leden }: { nummer: number; leden: TafelGast[] }) {
+  const straal = 40 // afstand naamkaartjes tot het midden, in % van de cel
+  return (
+    <div className="relative aspect-square w-full">
+      <div className="absolute left-1/2 top-1/2 flex aspect-square w-[46%] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full bg-primary text-primary-foreground">
+        <span className="font-serif text-xl font-bold">{nummer}</span>
+        <span className="text-[10px] opacity-80">
+          {leden.length === 0 ? "leeg" : `${leden.length} gasten`}
+        </span>
+      </div>
+      {leden.map((g, i) => {
+        const hoek = ((-90 + (i * 360) / leden.length) * Math.PI) / 180
+        const x = 50 + Math.cos(hoek) * straal
+        const y = 50 + Math.sin(hoek) * straal
+        return (
+          <span
+            key={g.id}
+            style={{ left: `${x}%`, top: `${y}%` }}
+            className="absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded border border-border bg-background px-1.5 py-0.5 text-[11px] font-medium shadow-sm"
+          >
+            {g.name}
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
 /**
  * Tafelindeling voor het diner: alle daggasten, gegroepeerd per tafel.
  * De tafel is per gast direct aan te passen met het dropdownmenu.
@@ -83,6 +122,22 @@ export function TafelIndeling() {
         {dagGasten.length} daggasten, {zonderTafel.length} nog zonder tafel.
         Avondgasten staan hier niet bij.
       </p>
+
+      {/* Plattegrond: 5 ronde tafels als dobbelsteen-ogen, scherm bovenaan */}
+      <div className="mb-6 overflow-x-auto rounded-lg border border-border bg-card">
+        <div className="min-w-[640px] space-y-4 p-6">
+          <div className="mx-auto w-1/2 rounded bg-primary py-1.5 text-center text-xs font-semibold tracking-[0.3em] text-primary-foreground">
+            SCHERM
+          </div>
+          <div className="grid grid-cols-3 grid-rows-3 gap-3">
+            {TAFELS.map((t) => (
+              <div key={t} className={DOBBELSTEEN_POSITIE[t]}>
+                <RondeTafel nummer={t} leden={dagGasten.filter((g) => g.tafel === t)} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         {groepen.map((groep) => (

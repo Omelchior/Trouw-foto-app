@@ -94,8 +94,8 @@ const PRAKTISCH = [
     titel: "Allergieën & dieetwensen",
     tekst: "Laat dieetwensen of allergieën vóór 31 juli even weten via:",
     contacten: [
-      { naam: "Olaf Melchior", telefoon: "06-250 600 54" },
-      { naam: "Ester Doorlag", telefoon: "06-316 428 88" },
+      { naam: "Olaf Melchior", telefoon: "06-316 428 88" },
+      { naam: "Ester Doorlag", telefoon: "06-250 600 54" },
     ],
   },
 ]

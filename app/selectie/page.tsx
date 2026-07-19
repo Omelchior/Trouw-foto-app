@@ -1,12 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Images, Loader2 } from "lucide-react"
+import { Suspense, useState, useEffect } from "react"
+import { Images, Loader2, Camera, ChevronUp } from "lucide-react"
 import { PhotoGrid } from "@/components/photo-grid"
 import { PhotoLightbox } from "@/components/photo-lightbox"
+import { PhotoUpload } from "@/components/photo-upload"
 import { Navigation } from "@/components/navigation"
 import { LogoutButton } from "@/components/logout-button"
+import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
+import { getGuestSession, type GuestSession } from "@/lib/guest"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface Photo {
@@ -15,6 +18,7 @@ interface Photo {
   uploaded_by: string
   uploaded_at: string
   is_selected: boolean
+  challenge_id?: number | null
   url?: string // generated from storage_path
 }
 
@@ -23,6 +27,8 @@ export default function SelectiePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [lightboxPhoto, setLightboxPhoto] = useState<Photo | null>(null)
   const [activeTab, setActiveTab] = useState("alle")
+  const [session, setSession] = useState<GuestSession | null>(null)
+  const [uploadOpen, setUploadOpen] = useState(false)
 
   const fetchPhotos = async () => {
     const supabase = createClient()
@@ -46,7 +52,8 @@ export default function SelectiePage() {
 
   useEffect(() => {
     fetchPhotos()
-    
+    getGuestSession().then(setSession)
+
     // Set up realtime subscription
     const supabase = createClient()
     const channel = supabase
@@ -66,7 +73,13 @@ export default function SelectiePage() {
   }, [])
 
   const selectedPhotos = photos.filter(p => p.is_selected)
-  const displayPhotos = activeTab === "geselecteerd" ? selectedPhotos : photos
+  const opdrachtPhotos = photos.filter(p => p.challenge_id != null)
+  const displayPhotos =
+    activeTab === "geselecteerd"
+      ? selectedPhotos
+      : activeTab === "opdrachten"
+        ? opdrachtPhotos
+        : photos
 
   return (
     <main className="min-h-screen pb-20">
@@ -89,11 +102,49 @@ export default function SelectiePage() {
           </p>
         </header>
 
+        {/* Snelle upload: meerdere foto's van de hele dag, zonder fotoboek-stap */}
+        {session && (
+          <div className="mb-6">
+            <Button
+              variant={uploadOpen ? "outline" : "default"}
+              className="w-full h-12 text-base gap-2"
+              onClick={() => setUploadOpen((v) => !v)}
+            >
+              {uploadOpen ? (
+                <>
+                  <ChevronUp className="w-5 h-5" />
+                  Upload verbergen
+                </>
+              ) : (
+                <>
+                  <Camera className="w-5 h-5" />
+                  Foto&apos;s uploaden
+                </>
+              )}
+            </Button>
+            {uploadOpen && (
+              <div className="mt-4">
+                <Suspense fallback={null}>
+                  <PhotoUpload
+                    directUploaden
+                    guestName={session.name}
+                    userId={session.user_id}
+                    onUploadComplete={fetchPhotos}
+                  />
+                </Suspense>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="alle">
               Alle ({photos.length})
+            </TabsTrigger>
+            <TabsTrigger value="opdrachten">
+              Opdrachten ({opdrachtPhotos.length})
             </TabsTrigger>
             <TabsTrigger value="geselecteerd">
               Geselecteerd ({selectedPhotos.length})

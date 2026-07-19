@@ -1,12 +1,15 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Target, Images, Info, Home } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { isAppOpen } from "@/lib/bruiloft"
+import { getGuestSession } from "@/lib/guest"
 
 const openItems = [
+  { href: "/", label: "Home", icon: Home },
   { href: "/bingo", label: "Opdrachten", icon: Target },
   { href: "/selectie", label: "Galerij", icon: Images },
   { href: "/info", label: "Info", icon: Info },
@@ -20,7 +23,22 @@ const geslotenItems = [
 
 export function Navigation() {
   const pathname = usePathname()
-  const navItems = isAppOpen() ? openItems : geslotenItems
+  // Beheer en ceremoniemeesters zien het volledige menu ook vóór de trouwdag
+  // (de middleware laat ze daar al doorheen).
+  const [privileged, setPrivileged] = useState(false)
+
+  useEffect(() => {
+    if (isAppOpen()) return
+    let active = true
+    getGuestSession().then((s) => {
+      if (active && s) setPrivileged(s.is_privileged)
+    })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const navItems = isAppOpen() || privileged ? openItems : geslotenItems
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 safe-area-inset-bottom">

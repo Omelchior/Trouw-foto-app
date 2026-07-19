@@ -11,6 +11,7 @@ interface Photo {
   uploaded_by: string
   uploaded_at: string
   is_selected: boolean
+  challenge_id?: number | null
   url?: string
 }
 
@@ -81,12 +82,19 @@ export function PhotoGrid({
             loading="lazy"
           />
           
-          {/* Overlay with uploader name */}
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-foreground/60 to-transparent p-3 rounded-b-lg opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* Overlay with uploader name (altijd zichtbaar; hover werkt niet op telefoons) */}
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-foreground/60 to-transparent p-3 rounded-b-lg">
             <p className="text-sm text-primary-foreground font-medium truncate">
               {photo.uploaded_by}
             </p>
           </div>
+
+          {/* Opdracht-badge */}
+          {photo.challenge_id != null && !photo.is_selected && !selectionMode && (
+            <div className="absolute top-2 left-2 text-[10px] sm:text-xs font-bold text-white bg-primary/90 rounded px-1.5 py-0.5">
+              #{photo.challenge_id}
+            </div>
+          )}
 
           {/* Selection indicator */}
           {selectionMode && (

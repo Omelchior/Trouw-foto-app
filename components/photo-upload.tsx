@@ -76,11 +76,19 @@ interface PhotoUploadProps {
   isPrivileged?: boolean
   /** Gekoppelde opdracht die klaarstaat als er geen ?challenge= in de URL zit. */
   standaardOpdracht?: number | null
+  /** Snelle modus (galerij): direct uploaden, zonder fotoboek-stap. */
+  directUploaden?: boolean
 }
 
 type Step = "choose" | "fotoboek" | "uploading" | "done"
 
-export function PhotoUpload({ onUploadComplete, guestName, userId, standaardOpdracht }: PhotoUploadProps) {
+export function PhotoUpload({
+  onUploadComplete,
+  guestName,
+  userId,
+  standaardOpdracht,
+  directUploaden = false,
+}: PhotoUploadProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
 
@@ -105,6 +113,9 @@ export function PhotoUpload({ onUploadComplete, guestName, userId, standaardOpdr
 
   const fotoboekLeft = Math.max(0, MAX_FOTOBOEK - counts.fotoboek)
 
+  // Per opdracht mag maar één foto worden geüpload.
+  const enkeleFoto = challengeId != null
+
   useEffect(() => {
     getUploadCounts(userId).then(setCounts)
   }, [userId])
@@ -123,13 +134,27 @@ export function PhotoUpload({ onUploadComplete, guestName, userId, standaardOpdr
     }
     if (validFiles.length === 0) return
 
+    if (enkeleFoto) {
+      // Nieuwe keuze vervangt de vorige; er past er maar één bij een opdracht.
+      if (validFiles.length > 1) {
+        toast.error("Voor een opdracht kun je één foto kiezen")
+      }
+      const file = validFiles[0]
+      setFiles([file])
+      setFotoboekSelection(new Set())
+      const reader = new FileReader()
+      reader.onload = () => setPreviews([reader.result as string])
+      reader.readAsDataURL(file)
+      return
+    }
+
     setFiles(prev => [...prev, ...validFiles])
     validFiles.forEach((file) => {
       const reader = new FileReader()
       reader.onload = () => setPreviews(prev => [...prev, reader.result as string])
       reader.readAsDataURL(file)
     })
-  }, [])
+  }, [enkeleFoto])
 
   // Foto's kiezen via een gewone file-picker (de app wordt vooral op
   // telefoons gebruikt, dus geen sleepvlak).
@@ -137,14 +162,14 @@ export function PhotoUpload({ onUploadComplete, guestName, userId, standaardOpdr
     const input = document.createElement("input")
     input.type = "file"
     input.accept = "image/*"
-    input.multiple = true
+    input.multiple = !enkeleFoto
     if (viaCamera) input.capture = "environment"
     input.onchange = (e) => {
       const f = (e.target as HTMLInputElement).files
       if (f) onDrop(Array.from(f))
     }
     input.click()
-  }, [onDrop])
+  }, [onDrop, enkeleFoto])
 
   const removeFile = (index: number) => {
     setFiles(prev => prev.filter((_, i) => i !== index))
@@ -304,18 +329,24 @@ export function PhotoUpload({ onUploadComplete, guestName, userId, standaardOpdr
               Ik wil nog een opdracht!
             </Button>
           )}
-          <Button onClick={reset} variant="outline" className="gap-2">
+          <Button
+            onClick={reset}
+            variant={directUploaden ? "default" : "outline"}
+            className="gap-2"
+          >
             <Camera className="w-4 h-4" />
             Nog meer uploaden
           </Button>
-          <Button
-            onClick={backToBingo}
-            variant={voltooideOpdracht ? "outline" : "default"}
-            className="gap-2"
-          >
-            <Target className="w-4 h-4" />
-            Terug naar de opdrachten
-          </Button>
+          {!directUploaden && (
+            <Button
+              onClick={backToBingo}
+              variant={voltooideOpdracht ? "outline" : "default"}
+              className="gap-2"
+            >
+              <Target className="w-4 h-4" />
+              Terug naar de opdrachten
+            </Button>
+          )}
         </div>
       </div>
     )
@@ -398,29 +429,33 @@ export function PhotoUpload({ onUploadComplete, guestName, userId, standaardOpdr
 
   return (
     <div className="space-y-6">
-      {challenge && (
-        <div className="rounded-lg bg-primary/10 border border-primary/20 p-4">
-          <div className="flex items-start gap-3">
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold text-sm shrink-0">
-              {challenge.id}
-            </div>
-            <div className="flex-1">
-              <p className="text-xs text-primary font-medium uppercase tracking-wide mb-0.5">
-                {paramId ? "Foto-opdracht" : "Jouw foto-opdracht"}
-              </p>
-              <p className="text-sm text-foreground">{challenge.text}</p>
+      {/* Opdracht en upload vormen samen één kaart */}
+      <div className="border border-border rounded-xl overflow-hidden">
+        {challenge && (
+          <div className="bg-primary/10 border-b border-primary/20 p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold text-sm shrink-0">
+                {challenge.id}
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-primary font-medium uppercase tracking-wide mb-0.5">
+                  {paramId ? "Foto-opdracht" : "Jouw foto-opdracht"}
+                </p>
+                <p className="text-sm text-foreground">{challenge.text}</p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <div className="border border-border rounded-xl p-6 text-center">
+        <div className="p-6 text-center">
         {files.length === 0 ? (
           <div className="space-y-4">
             <div className="mx-auto w-14 h-14 rounded-full bg-secondary flex items-center justify-center">
               <Camera className="w-7 h-7 text-muted-foreground" />
             </div>
-            <p className="font-medium">Deel je foto&apos;s van vandaag</p>
+            <p className="font-medium">
+              {challenge ? "Maak of kies één foto voor deze opdracht" : "Deel je foto's van vandaag"}
+            </p>
             <div className="space-y-3">
               <Button
                 onClick={() => kiesFotos(true)}
@@ -457,28 +492,53 @@ export function PhotoUpload({ onUploadComplete, guestName, userId, standaardOpdr
                   </button>
                 </div>
               ))}
-              <button
-                onClick={() => kiesFotos(false)}
-                className="aspect-square border-2 border-dashed border-border rounded-lg flex items-center justify-center hover:border-primary hover:bg-primary/5 transition-colors"
-              >
-                <Upload className="w-5 h-5 text-muted-foreground" />
-              </button>
+              {!enkeleFoto && (
+                <button
+                  onClick={() => kiesFotos(false)}
+                  className="aspect-square border-2 border-dashed border-border rounded-lg flex items-center justify-center hover:border-primary hover:bg-primary/5 transition-colors"
+                >
+                  <Upload className="w-5 h-5 text-muted-foreground" />
+                </button>
+              )}
             </div>
             <p className="text-sm text-muted-foreground">
               {files.length} foto{files.length === 1 ? "" : "'s"} geselecteerd
             </p>
+            {enkeleFoto && (
+              <Button
+                onClick={() => kiesFotos(false)}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <Upload className="w-4 h-4" />
+                Andere foto kiezen
+              </Button>
+            )}
           </div>
         )}
+        </div>
       </div>
 
-      <Button
-        onClick={goToFotoboek}
-        disabled={files.length === 0}
-        className="w-full h-12 text-base gap-2"
-      >
-        <Heart className="w-4 h-4" />
-        Verder naar fotoboek →
-      </Button>
+      {directUploaden ? (
+        <Button
+          onClick={handleUpload}
+          disabled={files.length === 0}
+          className="w-full h-12 text-base gap-2"
+        >
+          <Upload className="w-4 h-4" />
+          Uploaden
+        </Button>
+      ) : (
+        <Button
+          onClick={goToFotoboek}
+          disabled={files.length === 0}
+          className="w-full h-12 text-base gap-2"
+        >
+          <Heart className="w-4 h-4" />
+          Verder naar fotoboek →
+        </Button>
+      )}
     </div>
   )
 }

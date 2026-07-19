@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect } from "react"
-import { X, ChevronLeft, ChevronRight, Heart, Download } from "lucide-react"
+import { X, ChevronLeft, ChevronRight, Heart, Download, Target } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { getChallenge } from "@/lib/guest"
 
 interface Photo {
   id: string
@@ -11,6 +11,7 @@ interface Photo {
   uploaded_by: string
   uploaded_at: string
   is_selected: boolean
+  challenge_id?: number | null
   url?: string
 }
 
@@ -47,6 +48,8 @@ export function PhotoLightbox({ photo, photos, onClose, onNavigate }: PhotoLight
   }, [photo, photos, currentIndex, onClose, onNavigate])
 
   if (!photo) return null
+
+  const opdracht = photo.challenge_id != null ? getChallenge(photo.challenge_id) : null
 
   return (
     <div className="fixed inset-0 z-50 bg-foreground/95 flex items-center justify-center">
@@ -94,8 +97,14 @@ export function PhotoLightbox({ photo, photos, onClose, onNavigate }: PhotoLight
       {/* Info bar */}
       <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-foreground/80 to-transparent">
         <div className="max-w-lg mx-auto flex items-center justify-between">
-          <div>
+          <div className="min-w-0 pr-3">
             <p className="text-primary-foreground font-medium">{photo.uploaded_by}</p>
+            {opdracht && (
+              <span className="inline-flex items-center gap-1 text-sm text-primary-foreground/80">
+                <Target className="w-3 h-3 shrink-0" />
+                <span className="truncate">Opdracht #{opdracht.id}: {opdracht.text}</span>
+              </span>
+            )}
             {photo.is_selected && (
               <span className="inline-flex items-center gap-1 text-sm text-accent">
                 <Heart className="w-3 h-3 fill-current" />

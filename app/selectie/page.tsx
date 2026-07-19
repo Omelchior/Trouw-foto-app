@@ -121,7 +121,21 @@ export default function SelectiePage() {
 
         {/* Snelle upload: meerdere foto's van de hele dag, zonder fotoboek-stap */}
         {session && (
-          <div className="mb-6">
+          <div className="mb-6 rounded-xl border border-primary/20 bg-primary/5 p-5">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <Camera className="w-6 h-6 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="font-serif text-lg font-bold text-foreground leading-tight">
+                  Deel je foto&apos;s van de hele dag
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Ceremonie, borrel, feest — upload al je mooiste kiekjes hier,
+                  zodat iedereen ze kan zien. Je hoeft er geen opdracht voor te doen!
+                </p>
+              </div>
+            </div>
             <Button
               variant={uploadOpen ? "outline" : "default"}
               className="w-full h-12 text-base gap-2"
@@ -135,7 +149,7 @@ export default function SelectiePage() {
               ) : (
                 <>
                   <Camera className="w-5 h-5" />
-                  Foto&apos;s uploaden
+                  Foto&apos;s toevoegen
                 </>
               )}
             </Button>

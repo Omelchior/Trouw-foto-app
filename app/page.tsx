@@ -68,8 +68,10 @@ export default function HomePage() {
 
     // Refresh on auth change (sign-in, token refresh, etc.)
     const supabase = createClient()
+    // setTimeout: nooit auth-functies direct in deze callback aanroepen,
+    // dat blokkeert de interne auth-lock van supabase-js (deadlock).
     const { data: sub } = supabase.auth.onAuthStateChange(() => {
-      load()
+      setTimeout(load, 0)
     })
 
     return () => {

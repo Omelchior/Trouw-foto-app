@@ -4,14 +4,20 @@ import { useEffect, useState } from "react"
 import { Target, Heart, Loader2 } from "lucide-react"
 import { Navigation } from "@/components/navigation"
 import { LogoutButton } from "@/components/logout-button"
-import { BingoBoard, type BingoPhoto } from "@/components/bingo-board"
+import { OpdrachtCarousel, type OpdrachtFoto } from "@/components/opdracht-carousel"
 import { WelcomeScreen } from "@/components/welcome-screen"
-import { getGuestSession, CHALLENGES, type GuestSession } from "@/lib/guest"
+import {
+  getGuestSession,
+  getMijnEersteOpdracht,
+  CHALLENGES,
+  type GuestSession,
+} from "@/lib/guest"
 import { createClient } from "@/lib/supabase/client"
 
 export default function BingoPage() {
   const [session, setSession] = useState<GuestSession | null | "loading">("loading")
-  const [photosByChallenge, setPhotosByChallenge] = useState<Record<number, BingoPhoto>>({})
+  const [eersteOpdracht, setEersteOpdracht] = useState<number | null>(null)
+  const [photosByChallenge, setPhotosByChallenge] = useState<Record<number, OpdrachtFoto>>({})
 
   const loadSessionAndPhotos = async () => {
     const s = await getGuestSession()
@@ -20,6 +26,7 @@ export default function BingoPage() {
       return
     }
     setSession(s)
+    setEersteOpdracht(await getMijnEersteOpdracht())
 
     const supabase = createClient()
     const { data, error } = await supabase
@@ -35,7 +42,7 @@ export default function BingoPage() {
       return
     }
 
-    const map: Record<number, BingoPhoto> = {}
+    const map: Record<number, OpdrachtFoto> = {}
     for (const p of data || []) {
       const cid = p.challenge_id as number | null
       if (cid == null) continue
@@ -47,6 +54,7 @@ export default function BingoPage() {
           uploaded_by: p.uploaded_by,
           uploaded_at: p.uploaded_at,
           is_selected: p.is_selected,
+          challenge_id: cid,
           url: supabase.storage.from("wedding-photos").getPublicUrl(p.storage_path).data.publicUrl,
         }
       }
@@ -65,7 +73,11 @@ export default function BingoPage() {
     run()
 
     const supabase = createClient()
-    const { data: sub } = supabase.auth.onAuthStateChange(() => run())
+    // setTimeout: nooit auth-functies direct in deze callback aanroepen,
+    // dat blokkeert de interne auth-lock van supabase-js (deadlock).
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      setTimeout(run, 0)
+    })
 
     const profileChannel = supabase
       .channel("bingo-profile-changes")
@@ -114,7 +126,7 @@ export default function BingoPage() {
         <LogoutButton />
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 py-8">
+      <div className="max-w-lg mx-auto px-4 py-8">
         <header className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
             <Target className="w-8 h-8 text-primary" />
@@ -123,8 +135,8 @@ export default function BingoPage() {
             Foto-opdrachten
           </h1>
           <p className="text-muted-foreground text-sm">
-            Maak foto&apos;s om mensen te verbinden. Tik een leeg vakje aan om eraan te werken;
-            tik een voltooid vakje aan om je foto te bekijken.
+            Upload één foto per opdracht en ga daarna voor de volgende.
+            Swipe naar links om je eerdere foto&apos;s terug te zien.
           </p>
           <div className="mt-3 inline-flex items-center gap-2 text-sm">
             <Heart className="w-4 h-4 text-primary fill-primary/30" />
@@ -132,9 +144,13 @@ export default function BingoPage() {
           </div>
         </header>
 
-        <BingoBoard
+        <OpdrachtCarousel
+          userId={session.user_id}
+          guestName={session.name}
           completed={session.completed_challenges}
+          eersteOpdracht={eersteOpdracht}
           photosByChallenge={photosByChallenge}
+          onChanged={loadSessionAndPhotos}
         />
       </div>
 

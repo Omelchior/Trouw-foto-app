@@ -204,6 +204,7 @@ export default function HomePage() {
                 </p>
               </div>
               <OpdrachtCarousel
+                compact
                 userId={session.user_id}
                 guestName={session.name}
                 completed={voltooid}

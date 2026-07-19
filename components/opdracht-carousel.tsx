@@ -28,6 +28,11 @@ interface OpdrachtCarouselProps {
   photosByChallenge: Record<number, OpdrachtFoto>
   /** Sessie en foto's opnieuw laden na een geslaagde upload. */
   onChanged: () => void
+  /**
+   * Compacte modus (homepage): toon alleen de actieve kaart op natuurlijke
+   * hoogte, zonder carrousel met eerdere foto's en zonder pijltjes.
+   */
+  compact?: boolean
 }
 
 const KAART = "w-[80%] max-w-sm shrink-0 snap-center"
@@ -44,6 +49,7 @@ export function OpdrachtCarousel({
   eersteOpdracht,
   photosByChallenge,
   onChanged,
+  compact = false,
 }: OpdrachtCarouselProps) {
   // Opdracht die de gast zelf via "nog een opdracht" heeft gekozen.
   const [gekozen, setGekozen] = useState<number | null>(null)
@@ -134,6 +140,117 @@ export function OpdrachtCarousel({
     if (el) el.scrollBy({ left: richting * el.clientWidth * 0.8, behavior: "smooth" })
   }
 
+  // In compacte modus (homepage) vult de kaart de volle breedte, zonder
+  // peek/snap; in de carrousel is het een smallere snap-kaart.
+  const kaartKlasse = compact ? "w-full" : KAART
+
+  // De actieve opdracht (upload) of de "volgende opdracht"-kaart. Wordt zowel
+  // in compacte modus als in de carrousel gebruikt.
+  const focalCard = actieveOpdracht ? (
+    <div ref={focusRef} className={cn(kaartKlasse, "border border-border rounded-xl overflow-hidden flex flex-col bg-card")}>
+      <div className="bg-primary/10 border-b border-primary/20 p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold text-sm shrink-0">
+            {actieveOpdracht.id}
+          </div>
+          <div className="flex-1">
+            <p className="text-xs text-primary font-medium uppercase tracking-wide mb-0.5">
+              {actief === eersteOpdracht ? "Jouw foto-opdracht" : "Foto-opdracht"}
+            </p>
+            <p className="text-sm text-foreground">{actieveOpdracht.text}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-4 flex-1 flex flex-col justify-center gap-3">
+        {preview ? (
+          <>
+            <img
+              src={preview}
+              alt="Gekozen foto"
+              className="w-full aspect-square object-cover rounded-lg"
+            />
+            <Button
+              onClick={() => kiesFoto(false)}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              disabled={uploading}
+            >
+              <Upload className="w-4 h-4" />
+              Andere foto kiezen
+            </Button>
+            <Button onClick={upload} disabled={uploading} className="h-11 gap-2">
+              {uploading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Upload className="w-4 h-4" />
+              )}
+              Uploaden
+            </Button>
+          </>
+        ) : (
+          <>
+            <div className="mx-auto w-14 h-14 rounded-full bg-secondary flex items-center justify-center">
+              <Camera className="w-7 h-7 text-muted-foreground" />
+            </div>
+            <p className="text-center text-sm font-medium">
+              Maak of kies één foto voor deze opdracht
+            </p>
+            <Button onClick={() => kiesFoto(true)} className="h-11 gap-2">
+              <Camera className="w-5 h-5" />
+              Maak een foto
+            </Button>
+            <Button onClick={() => kiesFoto(false)} variant="outline" className="h-11 gap-2">
+              <Upload className="w-5 h-5" />
+              Kies uit je galerij
+            </Button>
+          </>
+        )}
+      </div>
+    </div>
+  ) : (
+    <div
+      ref={focusRef}
+      className={cn(
+        kaartKlasse,
+        !compact && "min-h-[18rem]",
+        "border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center gap-3 text-center"
+      )}
+    >
+      {allesGedaan ? (
+        <>
+          <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+            <PartyPopper className="w-7 h-7 text-primary" />
+          </div>
+          <p className="font-serif text-lg font-bold">Wauw, alles voltooid!</p>
+          <p className="text-sm text-muted-foreground">
+            Je hebt álle {CHALLENGES.length} opdrachten gedaan. 🎉
+          </p>
+        </>
+      ) : (
+        <>
+          <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+            <Target className="w-7 h-7 text-primary" />
+          </div>
+          <p className="font-medium">Zin in nog een opdracht?</p>
+          <p className="text-sm text-muted-foreground">
+            Je krijgt een willekeurige opdracht die je nog niet hebt gedaan.
+          </p>
+          <Button onClick={nogEenOpdracht} className="h-11 gap-2">
+            <Target className="w-5 h-5" />
+            Geef me een opdracht!
+          </Button>
+        </>
+      )}
+    </div>
+  )
+
+  // Homepage: alleen de actieve kaart, geen carrousel of eerdere foto's.
+  if (compact) {
+    return focalCard
+  }
+
   return (
     <>
       <div className="relative">
@@ -193,103 +310,8 @@ export function OpdrachtCarousel({
             )
           })}
 
-          {/* Actieve opdracht met upload-venster */}
-          {actieveOpdracht ? (
-            <div ref={focusRef} className={`${KAART} border border-border rounded-xl overflow-hidden flex flex-col bg-card`}>
-              <div className="bg-primary/10 border-b border-primary/20 p-4">
-                <div className="flex items-start gap-3">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold text-sm shrink-0">
-                    {actieveOpdracht.id}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-xs text-primary font-medium uppercase tracking-wide mb-0.5">
-                      {actief === eersteOpdracht ? "Jouw foto-opdracht" : "Foto-opdracht"}
-                    </p>
-                    <p className="text-sm text-foreground">{actieveOpdracht.text}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-4 flex-1 flex flex-col justify-center gap-3">
-                {preview ? (
-                  <>
-                    <img
-                      src={preview}
-                      alt="Gekozen foto"
-                      className="w-full aspect-square object-cover rounded-lg"
-                    />
-                    <Button
-                      onClick={() => kiesFoto(false)}
-                      variant="outline"
-                      size="sm"
-                      className="gap-2"
-                      disabled={uploading}
-                    >
-                      <Upload className="w-4 h-4" />
-                      Andere foto kiezen
-                    </Button>
-                    <Button onClick={upload} disabled={uploading} className="h-11 gap-2">
-                      {uploading ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Upload className="w-4 h-4" />
-                      )}
-                      Uploaden
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <div className="mx-auto w-14 h-14 rounded-full bg-secondary flex items-center justify-center">
-                      <Camera className="w-7 h-7 text-muted-foreground" />
-                    </div>
-                    <p className="text-center text-sm font-medium">
-                      Maak of kies één foto voor deze opdracht
-                    </p>
-                    <Button onClick={() => kiesFoto(true)} className="h-11 gap-2">
-                      <Camera className="w-5 h-5" />
-                      Maak een foto
-                    </Button>
-                    <Button onClick={() => kiesFoto(false)} variant="outline" className="h-11 gap-2">
-                      <Upload className="w-5 h-5" />
-                      Kies uit je galerij
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          ) : (
-            /* Alles wat klaar is: kaart voor de volgende opdracht */
-            <div
-              ref={focusRef}
-              className={`${KAART} min-h-[18rem] border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center gap-3 text-center`}
-            >
-              {allesGedaan ? (
-                <>
-                  <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-                    <PartyPopper className="w-7 h-7 text-primary" />
-                  </div>
-                  <p className="font-serif text-lg font-bold">Wauw, alles voltooid!</p>
-                  <p className="text-sm text-muted-foreground">
-                    Je hebt álle {CHALLENGES.length} opdrachten gedaan. 🎉
-                  </p>
-                </>
-              ) : (
-                <>
-                  <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Target className="w-7 h-7 text-primary" />
-                  </div>
-                  <p className="font-medium">Zin in nog een opdracht?</p>
-                  <p className="text-sm text-muted-foreground">
-                    Je krijgt een willekeurige opdracht die je nog niet hebt gedaan.
-                  </p>
-                  <Button onClick={nogEenOpdracht} className="h-11 gap-2">
-                    <Target className="w-5 h-5" />
-                    Geef me een opdracht!
-                  </Button>
-                </>
-              )}
-            </div>
-          )}
+          {/* Actieve opdracht (upload) of de "volgende opdracht"-kaart */}
+          {focalCard}
         </div>
 
         {/* Pijltjes voor wie niet swipet (desktop) */}

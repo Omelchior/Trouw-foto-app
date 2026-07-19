@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { BookOpen, ChevronLeft, Loader2, Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { Navigation } from "@/components/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 
@@ -62,7 +63,7 @@ export default function DraaiboekPage() {
   const gewijzigd = tekst !== origineel
 
   return (
-    <main className="min-h-screen pb-12 bg-background">
+    <main className="min-h-screen pb-24 bg-background">
       <div className="max-w-2xl mx-auto px-4 py-8">
         <header className="flex items-center justify-between mb-6 flex-wrap gap-2">
           <div className="flex items-center gap-3">
@@ -112,6 +113,8 @@ export default function DraaiboekPage() {
           </div>
         )}
       </div>
+
+      <Navigation />
     </main>
   )
 }

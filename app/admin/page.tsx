@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { GuestListManager } from "@/components/guest-list-manager"
+import { Navigation } from "@/components/navigation"
 import { TafelIndeling } from "@/components/tafel-indeling"
 import { PhotoGrid } from "@/components/photo-grid"
 import { PhotoLightbox } from "@/components/photo-lightbox"
@@ -239,7 +240,7 @@ export default function AdminPage() {
   const selectedPhotos = photos.filter(p => p.is_selected)
 
   return (
-    <main className="min-h-screen pb-8">
+    <main className="min-h-screen pb-24">
       <div className="max-w-4xl mx-auto px-4 py-6">
         <header className="flex items-center justify-between mb-6 flex-wrap gap-2">
           <div className="flex items-center gap-3">
@@ -356,6 +357,8 @@ export default function AdminPage() {
 
         </Tabs>
       </div>
+
+      <Navigation />
 
       <PhotoLightbox
         photo={lightboxPhoto}

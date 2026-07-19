@@ -44,24 +44,27 @@ function buildUrl(supabase: ReturnType<typeof createClient>, storagePath: string
   return supabase.storage.from("wedding-photos").getPublicUrl(storagePath).data.publicUrl
 }
 
-/** Eén dia die bij het mounten zachtjes infade't (crossfade over de vorige). */
-function Slide({ photo }: { photo: Photo }) {
-  const [shown, setShown] = useState(false)
+/**
+ * Eén dia. Standaard fade't hij bij het mounten zachtjes in; met `fadeUit`
+ * start hij zichtbaar en fade't hij naar onzichtbaar (de vertrekkende dia).
+ */
+function Slide({ photo, fadeUit = false }: { photo: Photo; fadeUit?: boolean }) {
+  const [zichtbaar, setZichtbaar] = useState(fadeUit)
 
   useEffect(() => {
-    const raf = requestAnimationFrame(() => setShown(true))
+    const raf = requestAnimationFrame(() => setZichtbaar(!fadeUit))
     return () => cancelAnimationFrame(raf)
-  }, [])
+  }, [fadeUit])
 
   return (
     <img
       src={photo.url}
-      alt={`Foto van ${photo.uploaded_by}`}
+      alt={fadeUit ? "" : `Foto van ${photo.uploaded_by}`}
       className="absolute inset-0 m-auto max-h-full max-w-full object-contain transition-opacity ease-in-out"
       style={{
-        opacity: shown ? 1 : 0,
+        opacity: zichtbaar ? 1 : 0,
         transitionDuration: `${FADE_MS}ms`,
-        animation: shown ? "diaKenburns 18s ease-out forwards" : undefined,
+        animation: !fadeUit && zichtbaar ? "diaKenburns 18s ease-out forwards" : undefined,
       }}
     />
   )
@@ -282,15 +285,8 @@ export default function DiavoorstellingPage() {
             />
           )}
 
-          {/* Vorige dia blijft staan tijdens de crossfade */}
-          {prev && (
-            <img
-              key={`prev-${prev.id}`}
-              src={prev.url}
-              alt=""
-              className="absolute inset-0 m-auto max-h-full max-w-full object-contain"
-            />
-          )}
+          {/* Vorige dia fade't uit terwijl de nieuwe infade't */}
+          {prev && <Slide key={`prev-${prev.id}`} photo={prev} fadeUit />}
 
           {/* Huidige dia fade't eroverheen in */}
           {current && <Slide key={current.id} photo={current} />}

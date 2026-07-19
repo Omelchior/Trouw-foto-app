@@ -1,7 +1,7 @@
 "use client"
 
 import { Suspense, useState, useEffect } from "react"
-import { Images, Loader2, Camera, ChevronUp } from "lucide-react"
+import { Images, Loader2, Camera, ChevronUp, Heart, Target } from "lucide-react"
 import { PhotoGrid } from "@/components/photo-grid"
 import { PhotoLightbox } from "@/components/photo-lightbox"
 import { PhotoUpload } from "@/components/photo-upload"
@@ -9,7 +9,7 @@ import { Navigation } from "@/components/navigation"
 import { LogoutButton } from "@/components/logout-button"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
-import { getGuestSession, type GuestSession } from "@/lib/guest"
+import { getGuestSession, getChallenge, type GuestSession } from "@/lib/guest"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface Photo {
@@ -19,6 +19,8 @@ interface Photo {
   uploaded_at: string
   is_selected: boolean
   challenge_id?: number | null
+  user_id?: string | null
+  in_fotoboek?: boolean
   url?: string // generated from storage_path
 }
 
@@ -74,12 +76,30 @@ export default function SelectiePage() {
 
   const selectedPhotos = photos.filter(p => p.is_selected)
   const opdrachtPhotos = photos.filter(p => p.challenge_id != null)
+
+  // Opdracht-foto's gegroepeerd per opdracht (oplopend op opdrachtnummer).
+  const perOpdracht = new Map<number, Photo[]>()
+  for (const p of opdrachtPhotos) {
+    const id = p.challenge_id as number
+    if (!perOpdracht.has(id)) perOpdracht.set(id, [])
+    perOpdracht.get(id)!.push(p)
+  }
+  const opdrachtGroepen = [...perOpdracht.entries()].sort(([a], [b]) => a - b)
+
+  // Eigen foto's van de ingelogde gast: opdracht-foto's en algemene foto's.
+  const mijnFotos = session ? photos.filter(p => p.user_id === session.user_id) : []
+  const mijnOpdrachtFotos = mijnFotos.filter(p => p.challenge_id != null)
+  const mijnAlgemeneFotos = mijnFotos.filter(p => p.challenge_id == null)
+
+  // Vlakke lijst per tab, zodat de lightbox in dezelfde volgorde bladert.
   const displayPhotos =
     activeTab === "geselecteerd"
       ? selectedPhotos
       : activeTab === "opdrachten"
-        ? opdrachtPhotos
-        : photos
+        ? opdrachtGroepen.flatMap(([, fotos]) => fotos)
+        : activeTab === "mijn"
+          ? [...mijnOpdrachtFotos, ...mijnAlgemeneFotos]
+          : photos
 
   return (
     <main className="min-h-screen pb-20">
@@ -139,12 +159,15 @@ export default function SelectiePage() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full h-auto grid-cols-2 sm:grid-cols-4">
             <TabsTrigger value="alle">
               Alle ({photos.length})
             </TabsTrigger>
             <TabsTrigger value="opdrachten">
               Opdrachten ({opdrachtPhotos.length})
+            </TabsTrigger>
+            <TabsTrigger value="mijn">
+              Van mij ({mijnFotos.length})
             </TabsTrigger>
             <TabsTrigger value="geselecteerd">
               Geselecteerd ({selectedPhotos.length})
@@ -156,6 +179,76 @@ export default function SelectiePage() {
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        ) : activeTab === "opdrachten" ? (
+          /* Per opdracht gegroepeerd: zo zie je wat er per opdracht is geüpload */
+          opdrachtGroepen.length === 0 ? (
+            <PhotoGrid photos={[]} onPhotoClick={setLightboxPhoto} />
+          ) : (
+            <div className="space-y-8">
+              {opdrachtGroepen.map(([id, fotos]) => (
+                <section key={id}>
+                  <div className="flex items-start gap-2 mb-3">
+                    <span className="flex items-center justify-center w-7 h-7 rounded-full bg-primary text-primary-foreground font-bold text-xs shrink-0">
+                      {id}
+                    </span>
+                    <p className="text-sm text-foreground pt-1">
+                      {getChallenge(id)?.text ?? `Opdracht ${id}`}{" "}
+                      <span className="text-muted-foreground">({fotos.length})</span>
+                    </p>
+                  </div>
+                  <PhotoGrid photos={fotos} onPhotoClick={setLightboxPhoto} />
+                </section>
+              ))}
+            </div>
+          )
+        ) : activeTab === "mijn" ? (
+          /* Eigen uploads: opdracht-foto's en algemene foto's apart */
+          <div className="space-y-8">
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <Target className="w-4 h-4 text-primary shrink-0" />
+                <h2 className="font-medium text-foreground">
+                  Voor opdrachten{" "}
+                  <span className="text-muted-foreground font-normal">
+                    ({mijnOpdrachtFotos.length})
+                  </span>
+                </h2>
+              </div>
+              {mijnOpdrachtFotos.length > 0 ? (
+                <PhotoGrid photos={mijnOpdrachtFotos} onPhotoClick={setLightboxPhoto} toonFotoboek />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Nog geen opdracht-foto&apos;s — ga naar Opdrachten om te beginnen!
+                </p>
+              )}
+            </section>
+
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <Heart className="w-4 h-4 text-primary shrink-0" />
+                <h2 className="font-medium text-foreground">
+                  Algemene foto&apos;s{" "}
+                  <span className="text-muted-foreground font-normal">
+                    ({mijnAlgemeneFotos.length})
+                  </span>
+                </h2>
+              </div>
+              {mijnAlgemeneFotos.length > 0 ? (
+                <PhotoGrid photos={mijnAlgemeneFotos} onPhotoClick={setLightboxPhoto} toonFotoboek />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Nog geen algemene foto&apos;s — deel je mooiste momenten van vandaag!
+                </p>
+              )}
+            </section>
+
+            {mijnFotos.length > 0 && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Heart className="w-3 h-3 fill-current text-primary" />
+                = door jou gekozen voor het fotoboek
+              </p>
+            )}
           </div>
         ) : (
           <PhotoGrid

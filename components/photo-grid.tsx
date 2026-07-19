@@ -12,6 +12,7 @@ interface Photo {
   uploaded_at: string
   is_selected: boolean
   challenge_id?: number | null
+  in_fotoboek?: boolean
   url?: string
 }
 
@@ -24,6 +25,8 @@ interface PhotoGridProps {
   isAdmin?: boolean
   onDelete?: (id: string) => void
   onToggleSelection?: (id: string, selected: boolean) => void
+  /** Toon een hartje op foto's die de gast voor het fotoboek heeft gekozen. */
+  toonFotoboek?: boolean
 }
 
 export function PhotoGrid({
@@ -34,7 +37,8 @@ export function PhotoGrid({
   onPhotoClick,
   isAdmin = false,
   onDelete,
-  onToggleSelection
+  onToggleSelection,
+  toonFotoboek = false
 }: PhotoGridProps) {
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({})
 
@@ -93,6 +97,13 @@ export function PhotoGrid({
           {photo.challenge_id != null && !photo.is_selected && !selectionMode && (
             <div className="absolute top-2 left-2 text-[10px] sm:text-xs font-bold text-white bg-primary/90 rounded px-1.5 py-0.5">
               #{photo.challenge_id}
+            </div>
+          )}
+
+          {/* Fotoboek-hartje (eigen keuze van de gast) */}
+          {toonFotoboek && photo.in_fotoboek && !selectionMode && !isAdmin && (
+            <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-primary/90 flex items-center justify-center">
+              <Heart className="w-3.5 h-3.5 text-white fill-white" />
             </div>
           )}
 

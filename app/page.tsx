@@ -4,7 +4,7 @@ import { Suspense, useState, useEffect } from "react"
 import Link from "next/link"
 import { Heart, Shield, Target, Images, Info, Lock, Clock, ChevronRight, MapPin, Shirt, Gift } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { PhotoUpload } from "@/components/photo-upload"
+import { OpdrachtCarousel, type OpdrachtFoto } from "@/components/opdracht-carousel"
 import { Navigation } from "@/components/navigation"
 import { LogoutButton } from "@/components/logout-button"
 import { AuthErrorHandler } from "@/components/auth-error-handler"
@@ -37,6 +37,33 @@ const INFO_HIGHLIGHTS = [
   { icon: Gift, label: "Onze cadeautip" },
 ]
 
+/** De eigen opdracht-foto's van de gast (max. 1 per opdracht, meest recente). */
+async function laadOpdrachtFotos(userId: string): Promise<Record<number, OpdrachtFoto>> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from("photos")
+    .select("id, storage_path, uploaded_by, uploaded_at, is_selected, challenge_id")
+    .eq("user_id", userId)
+    .not("challenge_id", "is", null)
+    .order("uploaded_at", { ascending: false })
+  if (error || !data) return {}
+  const map: Record<number, OpdrachtFoto> = {}
+  for (const p of data) {
+    const cid = p.challenge_id as number | null
+    if (cid == null || map[cid]) continue
+    map[cid] = {
+      id: p.id,
+      storage_path: p.storage_path,
+      uploaded_by: p.uploaded_by,
+      uploaded_at: p.uploaded_at,
+      is_selected: p.is_selected,
+      challenge_id: cid,
+      url: supabase.storage.from("wedding-photos").getPublicUrl(p.storage_path).data.publicUrl,
+    }
+  }
+  return map
+}
+
 export default function HomePage() {
   const [session, setSession] = useState<GuestSession | null | "loading">("loading")
   // Ingelogd maar nog niet aangemeld? Dan blijft het welkomscherm staan
@@ -45,54 +72,44 @@ export default function HomePage() {
   const [countdown, setCountdown] = useState<string | null>(null)
   // De foto-opdracht die via de gastenlijst aan deze gast is gekoppeld.
   const [eersteOpdracht, setEersteOpdracht] = useState<number | null>(null)
+  // De eigen opdracht-foto's, zodat de carrousel weet wat al gedaan is.
+  const [photosByChallenge, setPhotosByChallenge] = useState<Record<number, OpdrachtFoto>>({})
 
   // In een effect zodat server- en client-render niet verschillen.
   useEffect(() => {
     setCountdown(countdownTekst())
   }, [])
 
+  // Sessie, aanwezigheid, gekoppelde opdracht en eigen opdracht-foto's laden.
+  const laden = async () => {
+    const s = await getGuestSession()
+    const a = s ? await getMijnAanwezigheid() : null
+    const eerste = s ? await getMijnEersteOpdracht() : null
+    const fotos = s ? await laadOpdrachtFotos(s.user_id) : {}
+    setSession(s)
+    setAangemeld(a === null || a === "aangemeld")
+    setEersteOpdracht(eerste)
+    setPhotosByChallenge(fotos)
+  }
+
   useEffect(() => {
-    let active = true
-
-    const load = async () => {
-      const s = await getGuestSession()
-      const a = s ? await getMijnAanwezigheid() : null
-      const eerste = s ? await getMijnEersteOpdracht() : null
-      if (!active) return
-      setSession(s)
-      setAangemeld(a === null || a === "aangemeld")
-      setEersteOpdracht(eerste)
-    }
-
-    load()
+    laden()
 
     // Refresh on auth change (sign-in, token refresh, etc.)
     const supabase = createClient()
     // setTimeout: nooit auth-functies direct in deze callback aanroepen,
     // dat blokkeert de interne auth-lock van supabase-js (deadlock).
     const { data: sub } = supabase.auth.onAuthStateChange(() => {
-      setTimeout(load, 0)
+      setTimeout(laden, 0)
     })
 
     return () => {
-      active = false
       sub.subscription.unsubscribe()
     }
   }, [])
 
   const handleWelcomeComplete = async () => {
-    const s = await getGuestSession()
-    const eerste = s ? await getMijnEersteOpdracht() : null
-    setAangemeld(true)
-    setSession(s)
-    setEersteOpdracht(eerste)
-  }
-
-  // Na een upload het profiel verversen zodat een zojuist voltooide
-  // opdracht niet opnieuw als openstaande opdracht wordt aangeboden.
-  const handleUploadComplete = async () => {
-    const s = await getGuestSession()
-    if (s) setSession(s)
+    await laden()
   }
 
   if (session === "loading") {
@@ -111,12 +128,8 @@ export default function HomePage() {
   const open = isAppOpen() || session.is_privileged
   const programmapunt = volgendProgrammapunt()
 
-  // De gekoppelde opdracht staat standaard klaar in de upload-flow,
-  // zolang de gast er nog geen foto voor heeft geüpload.
-  const openstaandeOpdracht =
-    eersteOpdracht != null && !session.completed_challenges.includes(eersteOpdracht)
-      ? eersteOpdracht
-      : null
+  // Een opdracht geldt als voltooid zolang er ook echt een foto voor is.
+  const voltooid = session.completed_challenges.filter((id) => photosByChallenge[id])
 
   return (
     <main className="min-h-screen pb-20">
@@ -187,14 +200,16 @@ export default function HomePage() {
                   Hé {session.name.split(" ")[0]}! 👋
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Deel de mooiste momenten van deze dag
+                  Jouw foto-opdracht staat klaar
                 </p>
               </div>
-              <PhotoUpload
-                guestName={session.name}
+              <OpdrachtCarousel
                 userId={session.user_id}
-                standaardOpdracht={openstaandeOpdracht}
-                onUploadComplete={handleUploadComplete}
+                guestName={session.name}
+                completed={voltooid}
+                eersteOpdracht={eersteOpdracht}
+                photosByChallenge={photosByChallenge}
+                onChanged={laden}
               />
             </div>
 

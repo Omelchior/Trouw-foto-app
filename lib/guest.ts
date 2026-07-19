@@ -92,6 +92,18 @@ export function getChallenge(id: number): Challenge | undefined {
   return CHALLENGES.find(c => c.id === id)
 }
 
+/**
+ * Kies een willekeurige opdracht die de gast nog niet heeft gedaan.
+ * Geeft null als alle opdrachten voltooid zijn.
+ */
+export function volgendeOpdracht(completed: number[], skip?: number | null): Challenge | null {
+  const done = new Set(completed)
+  if (skip != null) done.add(skip)
+  const open = CHALLENGES.filter(c => !done.has(c.id))
+  if (open.length === 0) return null
+  return open[Math.floor(Math.random() * open.length)]
+}
+
 /** Beheer-capable roles (mogen het beheer in, achter het wachtwoord). */
 export function isPrivilegedRole(role: Role): boolean {
   return role === 'ceremony_master' || role === 'admin'
@@ -176,6 +188,26 @@ export async function getMijnDagdeel(): Promise<'dag' | 'avond' | null> {
 
   if (error || !data) return null
   return (data as { dagdeel: 'dag' | 'avond' | null }).dagdeel
+}
+
+/**
+ * De foto-opdracht die via de gastenlijst aan de ingelogde gast is gekoppeld.
+ * Geeft null bij onbekend (geen gast-rij of geen opdracht toegewezen).
+ */
+export async function getMijnEersteOpdracht(): Promise<number | null> {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const slug = (user?.email ?? '').split('@')[0]
+  if (!slug) return null
+
+  const { data, error } = await supabase
+    .from('guests')
+    .select('eerste_opdracht')
+    .eq('slug', slug)
+    .maybeSingle()
+
+  if (error || !data) return null
+  return (data as { eerste_opdracht: number | null }).eerste_opdracht
 }
 
 /** Gast meldt zichzelf aan (of af) voor de bruiloft. */

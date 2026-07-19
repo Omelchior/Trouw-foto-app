@@ -9,7 +9,12 @@ import { Navigation } from "@/components/navigation"
 import { LogoutButton } from "@/components/logout-button"
 import { AuthErrorHandler } from "@/components/auth-error-handler"
 import { WelcomeScreen } from "@/components/welcome-screen"
-import { getGuestSession, getMijnAanwezigheid, type GuestSession } from "@/lib/guest"
+import {
+  getGuestSession,
+  getMijnAanwezigheid,
+  getMijnEersteOpdracht,
+  type GuestSession,
+} from "@/lib/guest"
 import { createClient } from "@/lib/supabase/client"
 import {
   TROUWDATUM_TEKST,
@@ -38,6 +43,8 @@ export default function HomePage() {
   // zodat de aanmeld-bevestiging daar kan worden afgerond.
   const [aangemeld, setAangemeld] = useState(true)
   const [countdown, setCountdown] = useState<string | null>(null)
+  // De foto-opdracht die via de gastenlijst aan deze gast is gekoppeld.
+  const [eersteOpdracht, setEersteOpdracht] = useState<number | null>(null)
 
   // In een effect zodat server- en client-render niet verschillen.
   useEffect(() => {
@@ -50,9 +57,11 @@ export default function HomePage() {
     const load = async () => {
       const s = await getGuestSession()
       const a = s ? await getMijnAanwezigheid() : null
+      const eerste = s ? await getMijnEersteOpdracht() : null
       if (!active) return
       setSession(s)
       setAangemeld(a === null || a === "aangemeld")
+      setEersteOpdracht(eerste)
     }
 
     load()
@@ -71,8 +80,17 @@ export default function HomePage() {
 
   const handleWelcomeComplete = async () => {
     const s = await getGuestSession()
+    const eerste = s ? await getMijnEersteOpdracht() : null
     setAangemeld(true)
     setSession(s)
+    setEersteOpdracht(eerste)
+  }
+
+  // Na een upload het profiel verversen zodat een zojuist voltooide
+  // opdracht niet opnieuw als openstaande opdracht wordt aangeboden.
+  const handleUploadComplete = async () => {
+    const s = await getGuestSession()
+    if (s) setSession(s)
   }
 
   if (session === "loading") {
@@ -90,6 +108,13 @@ export default function HomePage() {
   // Beheer en ceremoniemeesters zien de volledige app ook vóór de trouwdag.
   const open = isAppOpen() || session.is_privileged
   const programmapunt = volgendProgrammapunt()
+
+  // De gekoppelde opdracht staat standaard klaar in de upload-flow,
+  // zolang de gast er nog geen foto voor heeft geüpload.
+  const openstaandeOpdracht =
+    eersteOpdracht != null && !session.completed_challenges.includes(eersteOpdracht)
+      ? eersteOpdracht
+      : null
 
   return (
     <main className="min-h-screen pb-20">
@@ -166,7 +191,8 @@ export default function HomePage() {
               <PhotoUpload
                 guestName={session.name}
                 userId={session.user_id}
-                onUploadComplete={() => {}}
+                standaardOpdracht={openstaandeOpdracht}
+                onUploadComplete={handleUploadComplete}
               />
             </div>
 

@@ -11,7 +11,10 @@ import {
   getUploadCounts,
   markChallengeCompleted,
   getChallenge,
+  getCurrentProfile,
+  volgendeOpdracht,
   MAX_FOTOBOEK,
+  type Challenge,
   type UploadCounts,
 } from "@/lib/guest"
 
@@ -71,16 +74,26 @@ interface PhotoUploadProps {
   guestName: string
   userId: string
   isPrivileged?: boolean
+  /** Gekoppelde opdracht die klaarstaat als er geen ?challenge= in de URL zit. */
+  standaardOpdracht?: number | null
 }
 
 type Step = "choose" | "fotoboek" | "uploading" | "done"
 
-export function PhotoUpload({ onUploadComplete, guestName, userId }: PhotoUploadProps) {
+export function PhotoUpload({ onUploadComplete, guestName, userId, standaardOpdracht }: PhotoUploadProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
 
+  // De opdracht die zojuist met een upload is voltooid; bevroren voor het
+  // done-scherm zodat die blijft staan terwijl de standaard-opdracht vervalt.
+  const [voltooideOpdracht, setVoltooideOpdracht] = useState<Challenge | null>(null)
+  const [standaardAfgerond, setStandaardAfgerond] = useState(false)
+
   const challengeIdParam = searchParams.get("challenge")
-  const challengeId = challengeIdParam ? parseInt(challengeIdParam, 10) : null
+  const paramId = challengeIdParam ? parseInt(challengeIdParam, 10) : null
+  const challengeId =
+    paramId ??
+    (standaardOpdracht != null && !standaardAfgerond ? standaardOpdracht : null)
   const challenge = challengeId ? getChallenge(challengeId) : null
 
   const [files, setFiles] = useState<File[]>([])
@@ -213,6 +226,8 @@ export function PhotoUpload({ onUploadComplete, guestName, userId }: PhotoUpload
       } catch (e) {
         console.error("Mark challenge error", e)
       }
+      setVoltooideOpdracht(challenge ?? null)
+      if (challengeId === standaardOpdracht) setStandaardAfgerond(true)
     }
 
     if (success > 0) {
@@ -234,11 +249,34 @@ export function PhotoUpload({ onUploadComplete, guestName, userId }: PhotoUpload
     setPreviews([])
     setFotoboekSelection(new Set())
     setUploadProgress([])
+    setVoltooideOpdracht(null)
     setStep("choose")
   }
 
   const backToBingo = () => {
     router.push("/bingo")
+  }
+
+  // Kies een willekeurige opdracht die de gast nog niet heeft gedaan en
+  // start de upload-flow daarvoor opnieuw.
+  const [zoektOpdracht, setZoektOpdracht] = useState(false)
+  const nogEenOpdracht = async () => {
+    setZoektOpdracht(true)
+    try {
+      const profile = await getCurrentProfile()
+      const volgende = volgendeOpdracht(
+        profile?.completed_challenges ?? [],
+        voltooideOpdracht?.id ?? challengeId
+      )
+      if (!volgende) {
+        toast.success("Wauw, je hebt álle opdrachten al gedaan! 🎉")
+        return
+      }
+      reset()
+      router.push(`/?challenge=${volgende.id}`)
+    } finally {
+      setZoektOpdracht(false)
+    }
   }
 
   if (step === "done") {
@@ -249,18 +287,32 @@ export function PhotoUpload({ onUploadComplete, guestName, userId }: PhotoUpload
         </div>
         <div>
           <h2 className="font-serif text-xl font-bold mb-1">Geüpload!</h2>
-          {challenge && (
+          {voltooideOpdracht && (
             <p className="text-sm text-primary font-medium">
-              Opdracht #{challenge.id} afgevinkt ✓
+              Opdracht #{voltooideOpdracht.id} afgevinkt ✓
             </p>
           )}
         </div>
         <div className="flex flex-col sm:flex-row gap-2 justify-center">
+          {voltooideOpdracht && (
+            <Button onClick={nogEenOpdracht} disabled={zoektOpdracht} className="gap-2">
+              {zoektOpdracht ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Target className="w-4 h-4" />
+              )}
+              Ik wil nog een opdracht!
+            </Button>
+          )}
           <Button onClick={reset} variant="outline" className="gap-2">
             <Camera className="w-4 h-4" />
             Nog meer uploaden
           </Button>
-          <Button onClick={backToBingo} className="gap-2">
+          <Button
+            onClick={backToBingo}
+            variant={voltooideOpdracht ? "outline" : "default"}
+            className="gap-2"
+          >
             <Target className="w-4 h-4" />
             Terug naar de opdrachten
           </Button>
@@ -354,7 +406,7 @@ export function PhotoUpload({ onUploadComplete, guestName, userId }: PhotoUpload
             </div>
             <div className="flex-1">
               <p className="text-xs text-primary font-medium uppercase tracking-wide mb-0.5">
-                Foto-opdracht
+                {paramId ? "Foto-opdracht" : "Jouw foto-opdracht"}
               </p>
               <p className="text-sm text-foreground">{challenge.text}</p>
             </div>

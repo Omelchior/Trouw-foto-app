@@ -110,6 +110,14 @@ export function isPrivilegedRole(role: Role): boolean {
 }
 
 /**
+ * Rollen met een Beheer-knop in de navigatie: beheer, ceremoniemeesters
+ * én de fotograaf (die selecteert foto's voor de diavoorstelling).
+ */
+export function heeftBeheerToegang(role: Role): boolean {
+  return isPrivilegedRole(role) || role === 'fotograaf'
+}
+
+/**
  * Fetch the public guest directory for the name picker.
  */
 export async function getGuestList(): Promise<GuestListEntry[]> {

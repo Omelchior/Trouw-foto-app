@@ -74,7 +74,6 @@ export default function SelectiePage() {
     }
   }, [])
 
-  const selectedPhotos = photos.filter(p => p.is_selected)
   const opdrachtPhotos = photos.filter(p => p.challenge_id != null)
 
   // Opdracht-foto's gegroepeerd per opdracht (oplopend op opdrachtnummer).
@@ -93,13 +92,11 @@ export default function SelectiePage() {
 
   // Vlakke lijst per tab, zodat de lightbox in dezelfde volgorde bladert.
   const displayPhotos =
-    activeTab === "geselecteerd"
-      ? selectedPhotos
-      : activeTab === "opdrachten"
-        ? opdrachtGroepen.flatMap(([, fotos]) => fotos)
-        : activeTab === "mijn"
-          ? [...mijnOpdrachtFotos, ...mijnAlgemeneFotos]
-          : photos
+    activeTab === "opdrachten"
+      ? opdrachtGroepen.flatMap(([, fotos]) => fotos)
+      : activeTab === "mijn"
+        ? [...mijnOpdrachtFotos, ...mijnAlgemeneFotos]
+        : photos
 
   return (
     <main className="min-h-screen pb-20">
@@ -159,7 +156,7 @@ export default function SelectiePage() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-          <TabsList className="grid w-full h-auto grid-cols-2 sm:grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="alle">
               Alle ({photos.length})
             </TabsTrigger>
@@ -168,9 +165,6 @@ export default function SelectiePage() {
             </TabsTrigger>
             <TabsTrigger value="mijn">
               Van mij ({mijnFotos.length})
-            </TabsTrigger>
-            <TabsTrigger value="geselecteerd">
-              Geselecteerd ({selectedPhotos.length})
             </TabsTrigger>
           </TabsList>
         </Tabs>

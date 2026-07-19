@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
+import { getChallenge } from "@/lib/guest"
 import { cn } from "@/lib/utils"
 
 interface Photo {
@@ -25,7 +26,13 @@ interface Photo {
   uploaded_by: string
   uploaded_at: string
   is_selected: boolean
+  challenge_id?: number | null
   url: string
+}
+
+/** De show draait op opdracht-foto's + foto's die via het beheer zijn geselecteerd. */
+function hoortInShow(p: Pick<Photo, "challenge_id" | "is_selected">): boolean {
+  return p.challenge_id != null || p.is_selected
 }
 
 // Beschikbare tempo's (seconden per foto)
@@ -98,6 +105,7 @@ export default function DiavoorstellingPage() {
       const { data, error } = await supabase
         .from("photos")
         .select("*")
+        .or("challenge_id.not.is.null,is_selected.eq.true")
         .order("uploaded_at", { ascending: true })
 
       if (error) {
@@ -112,16 +120,31 @@ export default function DiavoorstellingPage() {
 
     load()
 
-    // Nieuwe foto's stil aan de loop toevoegen; verwijderde foto's eruit halen.
+    // Nieuwe opdracht-foto's stil aan de loop toevoegen; verwijderde foto's
+    // eruit halen; (de)selecties uit het beheer direct verwerken.
     const channel = supabase
       .channel("diavoorstelling-photos")
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "photos" }, (payload) => {
         const row = payload.new as Omit<Photo, "url">
+        if (!hoortInShow(row)) return
         setPhotos((prev) => {
           if (prev.some((p) => p.id === row.id)) return prev
           return [...prev, { ...row, url: buildUrl(supabase, row.storage_path) }]
         })
         setCurrentId((prev) => prev ?? row.id)
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "photos" }, (payload) => {
+        const row = payload.new as Omit<Photo, "url">
+        setPhotos((prev) => {
+          const zitErin = prev.some((p) => p.id === row.id)
+          if (hoortInShow(row)) {
+            const metUrl = { ...row, url: buildUrl(supabase, row.storage_path) }
+            return zitErin
+              ? prev.map((p) => (p.id === row.id ? metUrl : p))
+              : [...prev, metUrl]
+          }
+          return zitErin ? prev.filter((p) => p.id !== row.id) : prev
+        })
       })
       .on("postgres_changes", { event: "DELETE", schema: "public", table: "photos" }, (payload) => {
         const removedId = (payload.old as { id: string }).id
@@ -244,7 +267,9 @@ export default function DiavoorstellingPage() {
             <Images className="w-10 h-10" />
           </div>
           <p className="text-xl">Nog geen foto's om te tonen</p>
-          <p className="text-sm text-white/50">Zodra gasten foto's uploaden verschijnen ze hier automatisch.</p>
+          <p className="text-sm text-white/50">
+            Opdracht-foto's en via het beheer geselecteerde foto's verschijnen hier automatisch.
+          </p>
         </div>
       ) : (
         <>
@@ -302,18 +327,27 @@ export default function DiavoorstellingPage() {
         </Button>
       </div>
 
-      {/* Naam van de uploader */}
+      {/* Wie de foto maakte en voor welke opdracht — altijd in beeld */}
       {current && (
-        <div
-          className={cn(
-            "absolute bottom-24 inset-x-0 text-center transition-opacity duration-300",
-            controlsVisible ? "opacity-100" : "opacity-0",
+        <div className="absolute bottom-24 inset-x-0 px-4 text-center space-y-2">
+          <div>
+            <span className="inline-flex items-center gap-2 text-white/90 text-lg font-serif bg-black/30 backdrop-blur px-4 py-2 rounded-full">
+              <Heart className="w-4 h-4 text-primary fill-current" />
+              {current.uploaded_by}
+            </span>
+          </div>
+          {current.challenge_id != null && (
+            <div>
+              <span className="inline-flex items-center gap-2 max-w-[90vw] text-white/80 text-sm bg-black/30 backdrop-blur px-4 py-1.5 rounded-full">
+                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-white text-[10px] font-bold shrink-0">
+                  {current.challenge_id}
+                </span>
+                <span className="truncate">
+                  {getChallenge(current.challenge_id)?.text ?? `Opdracht ${current.challenge_id}`}
+                </span>
+              </span>
+            </div>
           )}
-        >
-          <span className="inline-flex items-center gap-2 text-white/90 text-lg font-serif bg-black/30 backdrop-blur px-4 py-2 rounded-full">
-            <Heart className="w-4 h-4 text-primary fill-current" />
-            {current.uploaded_by}
-          </span>
         </div>
       )}
 

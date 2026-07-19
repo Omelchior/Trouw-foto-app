@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Target, Images, Info, Home } from "lucide-react"
+import { Target, Images, Info, Home, Shield } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { isAppOpen } from "@/lib/bruiloft"
-import { getGuestSession } from "@/lib/guest"
+import { getGuestSession, heeftBeheerToegang } from "@/lib/guest"
 
 const openItems = [
   { href: "/", label: "Home", icon: Home },
@@ -21,24 +21,30 @@ const geslotenItems = [
   { href: "/info", label: "Info", icon: Info },
 ]
 
+const beheerItem = { href: "/admin", label: "Beheer", icon: Shield }
+
 export function Navigation() {
   const pathname = usePathname()
   // Beheer en ceremoniemeesters zien het volledige menu ook vóór de trouwdag
-  // (de middleware laat ze daar al doorheen).
+  // (de middleware laat ze daar al doorheen); beheer/cm/fotograaf krijgen
+  // bovendien een Beheer-knop in het menu.
   const [privileged, setPrivileged] = useState(false)
+  const [beheerKnop, setBeheerKnop] = useState(false)
 
   useEffect(() => {
-    if (isAppOpen()) return
     let active = true
     getGuestSession().then((s) => {
-      if (active && s) setPrivileged(s.is_privileged)
+      if (!active || !s) return
+      setPrivileged(s.is_privileged)
+      setBeheerKnop(heeftBeheerToegang(s.role))
     })
     return () => {
       active = false
     }
   }, [])
 
-  const navItems = isAppOpen() || privileged ? openItems : geslotenItems
+  const basisItems = isAppOpen() || privileged ? openItems : geslotenItems
+  const navItems = beheerKnop ? [...basisItems, beheerItem] : basisItems
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 safe-area-inset-bottom">

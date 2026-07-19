@@ -70,7 +70,8 @@ export async function updateSession(request: NextRequest) {
 
     const role = profile?.role as string | undefined
 
-    if (role !== 'admin' && role !== 'ceremony_master') {
+    // Fotograaf mag ook het beheer in (voor het selecteren van foto's).
+    if (role !== 'admin' && role !== 'ceremony_master' && role !== 'fotograaf') {
       return redirectTo('/')
     }
 
@@ -107,7 +108,11 @@ export async function updateSession(request: NextRequest) {
       .select('role')
       .eq('user_id', user.id)
       .maybeSingle()
-    if (profile?.role === 'admin' || profile?.role === 'ceremony_master') {
+    if (
+      profile?.role === 'admin' ||
+      profile?.role === 'ceremony_master' ||
+      profile?.role === 'fotograaf'
+    ) {
       return redirectTo('/admin')
     }
   }

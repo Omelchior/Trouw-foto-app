@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { PhotoLightbox } from "@/components/photo-lightbox"
 import { markChallengeCompleted, getChallenge, volgendeOpdracht, CHALLENGES } from "@/lib/guest"
 import { uploadFoto, MAX_FILE_SIZE } from "@/lib/foto-upload"
+import { cn } from "@/lib/utils"
 
 export interface OpdrachtFoto {
   id: string
@@ -51,6 +52,8 @@ export function OpdrachtCarousel({
   const [uploading, setUploading] = useState(false)
   const [lightbox, setLightbox] = useState<OpdrachtFoto | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  // De actieve kaart (upload of "nog een opdracht"); die centreren we in beeld.
+  const focusRef = useRef<HTMLDivElement>(null)
 
   const completedSet = new Set(completed)
   const actief =
@@ -73,11 +76,14 @@ export function OpdrachtCarousel({
 
   const allesGedaan = completed.length >= CHALLENGES.length
 
-  // Start (en na elke verandering) bij de actieve kaart rechts, met de
-  // laatste foto er deels naast.
+  // Start (en na elke verandering) met de actieve kaart gecentreerd in beeld,
+  // met de laatst voltooide foto er deels links naast.
   useEffect(() => {
     const el = scrollRef.current
-    if (el) el.scrollTo({ left: el.scrollWidth, behavior: "smooth" })
+    const card = focusRef.current
+    if (!el || !card) return
+    const left = card.offsetLeft - (el.clientWidth - card.clientWidth) / 2
+    el.scrollTo({ left: Math.max(0, left), behavior: "smooth" })
   }, [voltooid.length, actief])
 
   const kiesFoto = (viaCamera: boolean) => {
@@ -133,7 +139,10 @@ export function OpdrachtCarousel({
       <div className="relative">
         <div
           ref={scrollRef}
-          className="flex items-stretch gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className={cn(
+            "relative flex items-stretch gap-3 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+            voltooid.length === 0 && "justify-center"
+          )}
         >
           {/* Voltooide opdrachten met hun foto */}
           {voltooid.map((id) => {
@@ -186,7 +195,7 @@ export function OpdrachtCarousel({
 
           {/* Actieve opdracht met upload-venster */}
           {actieveOpdracht ? (
-            <div className={`${KAART} border border-border rounded-xl overflow-hidden flex flex-col bg-card`}>
+            <div ref={focusRef} className={`${KAART} border border-border rounded-xl overflow-hidden flex flex-col bg-card`}>
               <div className="bg-primary/10 border-b border-primary/20 p-4">
                 <div className="flex items-start gap-3">
                   <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold text-sm shrink-0">
@@ -251,6 +260,7 @@ export function OpdrachtCarousel({
           ) : (
             /* Alles wat klaar is: kaart voor de volgende opdracht */
             <div
+              ref={focusRef}
               className={`${KAART} min-h-[18rem] border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center gap-3 text-center`}
             >
               {allesGedaan ? (

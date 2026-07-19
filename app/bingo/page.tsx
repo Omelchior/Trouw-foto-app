@@ -117,8 +117,12 @@ export default function BingoPage() {
     return <WelcomeScreen onComplete={() => window.location.reload()} />
   }
 
+  // Een opdracht geldt als voltooid zolang er ook echt een foto voor is.
+  // Zo wordt een opdracht vanzelf weer beschikbaar als de foto is verwijderd
+  // (de losse voortgang-markering kan achterlopen op de daadwerkelijke foto's).
+  const voltooid = session.completed_challenges.filter((id) => photosByChallenge[id])
   const total = CHALLENGES.length
-  const done = session.completed_challenges.length
+  const done = voltooid.length
 
   return (
     <main className="min-h-screen pb-24">
@@ -147,7 +151,7 @@ export default function BingoPage() {
         <OpdrachtCarousel
           userId={session.user_id}
           guestName={session.name}
-          completed={session.completed_challenges}
+          completed={voltooid}
           eersteOpdracht={eersteOpdracht}
           photosByChallenge={photosByChallenge}
           onChanged={loadSessionAndPhotos}

@@ -83,7 +83,7 @@ const PRAKTISCH = [
   {
     icon: Crown,
     titel: "Ceremoniemeesters",
-    tekst: "Vragen op de dag zelf? Bel of app de ceremoniemeesters:",
+    tekst: "Vragen op de dag zelf? Of al even contact over iets speciaals op de dag, bel of app de ceremoniemeesters:",
     contacten: [
       { naam: "Anton Melchior", telefoon: "06-420 605 57" },
       { naam: "Sira de Waard", telefoon: "06-294 289 07" },

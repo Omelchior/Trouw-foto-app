@@ -148,15 +148,24 @@ export async function verplaatsGastOpdracht(
  */
 export async function herverdeelOpdrachtenWillekeurig(): Promise<number> {
   const supabase = createClient()
-  const [gRes, pRes] = await Promise.all([
+  const [gRes, pRes, fRes] = await Promise.all([
     supabase.from('guests').select('id, claimed_user_id'),
     supabase.from('user_profiles').select('user_id, completed_challenges'),
+    supabase.from('photos').select('user_id, challenge_id').not('challenge_id', 'is', null),
   ])
   const guests = (gRes.data as { id: string; claimed_user_id: string | null }[]) ?? []
   const profiles = (pRes.data as { user_id: string; completed_challenges: number[] | null }[]) ?? []
+  const photos = (fRes.data as { user_id: string | null; challenge_id: number | null }[]) ?? []
 
+  // "Gedaan" = staat in completed_challenges óf er is een foto voor.
   const gedaanPer = new Map<string, Set<number>>()
   for (const p of profiles) gedaanPer.set(p.user_id, new Set(p.completed_challenges ?? []))
+  for (const f of photos) {
+    if (!f.user_id || f.challenge_id == null) continue
+    const s = gedaanPer.get(f.user_id) ?? new Set<number>()
+    s.add(f.challenge_id)
+    gedaanPer.set(f.user_id, s)
+  }
 
   const alleIds = CHALLENGES.map((c) => c.id)
 

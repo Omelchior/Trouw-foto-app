@@ -166,6 +166,20 @@ export function OpdrachtenOverzicht() {
     }
   }
 
+  // Wat elke gast al gedaan heeft: staat in completed_challenges óf er is een
+  // foto voor. Gebruikt om een gast niet naar een al-gedane opdracht te sturen.
+  const gedaanPerGast = useMemo(() => {
+    const m = new Map<string, Set<number>>()
+    for (const p of profiles) m.set(p.user_id, new Set(p.completed_challenges ?? []))
+    for (const ph of photos) {
+      if (!ph.user_id || ph.challenge_id == null) continue
+      const s = m.get(ph.user_id) ?? new Set<number>()
+      s.add(ph.challenge_id)
+      m.set(ph.user_id, s)
+    }
+    return m
+  }, [profiles, photos])
+
   // Per opdracht: gasten die 'm nu open hebben staan + gasten die 'm al deden.
   const perOpdracht = useMemo(() => {
     const gastenLijst = guests === "loading" ? [] : guests
@@ -308,11 +322,21 @@ export function OpdrachtenOverzicht() {
                           onBlur={() => setVerplaatsId(null)}
                           className="rounded-md border border-primary bg-background px-1.5 py-0.5 text-xs max-w-[12rem]"
                         >
-                          {opdrachten.map((o) => (
-                            <option key={o.id} value={o.id}>
-                              #{o.id} · {o.text.length > 34 ? o.text.slice(0, 34) + "…" : o.text}
-                            </option>
-                          ))}
+                          {opdrachten
+                            .filter((o) => {
+                              // Verberg opdrachten die deze gast al gedaan heeft
+                              // (behalve de huidige, die staat nog open).
+                              if (o.id === r.id) return true
+                              const gedaan = gast.claimed_user_id
+                                ? gedaanPerGast.get(gast.claimed_user_id)
+                                : undefined
+                              return !gedaan?.has(o.id)
+                            })
+                            .map((o) => (
+                              <option key={o.id} value={o.id}>
+                                #{o.id} · {o.text.length > 34 ? o.text.slice(0, 34) + "…" : o.text}
+                              </option>
+                            ))}
                         </select>
                       ) : (
                         <button

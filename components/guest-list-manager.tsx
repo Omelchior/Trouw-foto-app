@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { createClient } from "@/lib/supabase/client"
-import { zetAanwezigheidVoor, AANWEZIGHEID_OPTIES, type Aanwezigheid } from "@/lib/guest"
+import { zetAanwezigheidVoor, AANWEZIGHEID_OPTIES, CHALLENGES, type Aanwezigheid } from "@/lib/guest"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -259,8 +259,8 @@ export function GuestListManager() {
       return
     }
     const opdracht = draft.eerste_opdracht.trim() ? parseInt(draft.eerste_opdracht, 10) : null
-    if (opdracht !== null && (isNaN(opdracht) || opdracht < 1 || opdracht > 25)) {
-      toast.error("Eerste opdracht moet een nummer van 1 t/m 25 zijn")
+    if (opdracht !== null && (isNaN(opdracht) || opdracht < 1 || opdracht > CHALLENGES.length)) {
+      toast.error(`Eerste opdracht moet een nummer van 1 t/m ${CHALLENGES.length} zijn`)
       return
     }
 
@@ -433,7 +433,7 @@ export function GuestListManager() {
           title="Filter op eerste foto-opdracht"
         >
           <option value="">Alle opdrachten</option>
-          {Array.from({ length: 25 }, (_, i) => i + 1).map((n) => (
+          {Array.from({ length: CHALLENGES.length }, (_, i) => i + 1).map((n) => (
             <option key={n} value={n}>Opdracht #{n}</option>
           ))}
         </select>
@@ -524,11 +524,11 @@ export function GuestListManager() {
                           </select>
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-xs">Eerste foto-opdracht (1-25)</Label>
+                          <Label className="text-xs">Eerste foto-opdracht (1-{CHALLENGES.length})</Label>
                           <Input
                             type="number"
                             min={1}
-                            max={25}
+                            max={CHALLENGES.length}
                             value={draft.eerste_opdracht}
                             onChange={(e) => zetVeld("eerste_opdracht", e.target.value)}
                             className="h-10"

@@ -13,7 +13,7 @@ export function isAppOpen(): boolean {
 
 /** Gastenpagina's die pas op de trouwdag opengaan (beheer mag altijd). */
 export const GESLOTEN_VOOR_TROUWDAG = [
-  "/bingo",
+  "/opdracht",
   "/selectie",
   "/gastenboek",
   "/diavoorstelling",

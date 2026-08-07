@@ -5,7 +5,13 @@ import { Camera, Check, ChevronLeft, ChevronRight, Loader2, PartyPopper, Target,
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { PhotoLightbox } from "@/components/photo-lightbox"
-import { markChallengeCompleted, getChallenge, volgendeOpdracht, CHALLENGES } from "@/lib/guest"
+import {
+  markChallengeCompleted,
+  volgendeOpdracht,
+  berekenActieveOpdracht,
+  zetMijnOpdracht,
+} from "@/lib/guest"
+import { useOpdrachten } from "@/components/opdrachten-provider"
 import { uploadFoto, MAX_FILE_SIZE } from "@/lib/foto-upload"
 import { cn } from "@/lib/utils"
 
@@ -25,6 +31,8 @@ interface OpdrachtCarouselProps {
   completed: number[]
   /** Opdracht die via de gastenlijst aan deze gast is gekoppeld. */
   eersteOpdracht: number | null
+  /** Zelfgekozen vervolg-opdracht (uit de database) die nog openstaat. */
+  huidigeOpdracht: number | null
   photosByChallenge: Record<number, OpdrachtFoto>
   /** Sessie en foto's opnieuw laden na een geslaagde upload. */
   onChanged: () => void
@@ -47,28 +55,28 @@ export function OpdrachtCarousel({
   guestName,
   completed,
   eersteOpdracht,
+  huidigeOpdracht,
   photosByChallenge,
   onChanged,
   compact = false,
 }: OpdrachtCarouselProps) {
-  // Opdracht die de gast zelf via "nog een opdracht" heeft gekozen.
-  const [gekozen, setGekozen] = useState<number | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [kiezen, setKiezen] = useState(false)
   const [lightbox, setLightbox] = useState<OpdrachtFoto | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   // De actieve kaart (upload of "nog een opdracht"); die centreren we in beeld.
   const focusRef = useRef<HTMLDivElement>(null)
 
-  const completedSet = new Set(completed)
-  const actief =
-    eersteOpdracht != null && !completedSet.has(eersteOpdracht)
-      ? eersteOpdracht
-      : gekozen != null && !completedSet.has(gekozen)
-        ? gekozen
-        : null
-  const actieveOpdracht = actief != null ? getChallenge(actief) : null
+  // Actuele (via beheer aanpasbare) opdracht-teksten.
+  const opdrachten = useOpdrachten()
+  const tekstVan = (id: number) => opdrachten.find((c) => c.id === id)?.text
+
+  // De opdracht die nu openstaat: eerste opdracht (uit de gastenlijst) tot die
+  // gedaan is, daarna de zelfgekozen vervolg-opdracht (uit de database).
+  const actief = berekenActieveOpdracht(eersteOpdracht, completed, huidigeOpdracht)
+  const actieveOpdracht = actief != null ? { id: actief, text: tekstVan(actief) ?? "" } : null
 
   // Voltooide opdrachten in de volgorde waarin de foto's zijn geüpload.
   const voltooid = [...completed].sort((a, b) => {
@@ -80,7 +88,7 @@ export function OpdrachtCarousel({
     .map((id) => photosByChallenge[id])
     .filter(Boolean) as OpdrachtFoto[]
 
-  const allesGedaan = completed.length >= CHALLENGES.length
+  const allesGedaan = completed.length >= opdrachten.length
 
   // Start (en na elke verandering) met de actieve kaart gecentreerd in beeld,
   // met de laatst voltooide foto er deels links naast.
@@ -119,6 +127,12 @@ export function OpdrachtCarousel({
       await uploadFoto({ file, guestName, userId, challengeId: actief })
       await markChallengeCompleted(actief)
       toast.success(`Opdracht #${actief} afgevinkt! 🎉`)
+      // Afgeronde zelfgekozen opdracht wissen, zodat de gast daarna een
+      // nieuwe vaste opdracht kan kiezen en beheer 'm niet meer als
+      // openstaand ziet.
+      if (actief === huidigeOpdracht) {
+        try { await zetMijnOpdracht(null) } catch { /* niet kritiek */ }
+      }
       setFile(null)
       setPreview(null)
       onChanged()
@@ -130,9 +144,21 @@ export function OpdrachtCarousel({
     }
   }
 
-  const nogEenOpdracht = () => {
+  const nogEenOpdracht = async () => {
     const volgende = volgendeOpdracht(completed, actief)
-    if (volgende) setGekozen(volgende.id)
+    if (!volgende) return
+    setKiezen(true)
+    try {
+      // Vastleggen in de database zodat de opdracht blijft staan (ook na
+      // herladen of op een ander apparaat) tot hij is afgerond.
+      await zetMijnOpdracht(volgende.id)
+      onChanged()
+    } catch (e) {
+      console.error("Opdracht kiezen mislukt", e)
+      toast.error("Opdracht kiezen mislukt, probeer het opnieuw")
+    } finally {
+      setKiezen(false)
+    }
   }
 
   const scrollBij = (richting: -1 | 1) => {
@@ -225,7 +251,7 @@ export function OpdrachtCarousel({
           </div>
           <p className="font-serif text-lg font-bold">Wauw, alles voltooid!</p>
           <p className="text-sm text-muted-foreground">
-            Je hebt álle {CHALLENGES.length} opdrachten gedaan. 🎉
+            Je hebt álle {opdrachten.length} opdrachten gedaan. 🎉
           </p>
         </>
       ) : (
@@ -237,8 +263,8 @@ export function OpdrachtCarousel({
           <p className="text-sm text-muted-foreground">
             Je krijgt een willekeurige opdracht die je nog niet hebt gedaan.
           </p>
-          <Button onClick={nogEenOpdracht} className="h-11 gap-2">
-            <Target className="w-5 h-5" />
+          <Button onClick={nogEenOpdracht} disabled={kiezen} className="h-11 gap-2">
+            {kiezen ? <Loader2 className="w-5 h-5 animate-spin" /> : <Target className="w-5 h-5" />}
             Geef me een opdracht!
           </Button>
         </>
@@ -263,7 +289,7 @@ export function OpdrachtCarousel({
         >
           {/* Voltooide opdrachten met hun foto */}
           {voltooid.map((id) => {
-            const opdracht = getChallenge(id)
+            const opdracht = { id, text: tekstVan(id) ?? "" }
             const photo = photosByChallenge[id]
 
             if (!photo) {

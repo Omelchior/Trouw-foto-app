@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next'
 import { Playfair_Display, Lato } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Toaster } from '@/components/ui/sonner'
+import { OpdrachtenProvider } from '@/components/opdrachten-provider'
 import './globals.css'
 
 const _playfair = Playfair_Display({ subsets: ["latin"], variable: '--font-serif' });
@@ -30,7 +31,9 @@ export default function RootLayout({
   return (
     <html lang="nl">
       <body className={`font-sans antialiased`}>
-        {children}
+        <OpdrachtenProvider>
+          {children}
+        </OpdrachtenProvider>
         <Toaster position="top-center" />
         <Analytics />
       </body>

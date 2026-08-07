@@ -213,8 +213,8 @@ export function PhotoUpload({
     setStep("choose")
   }
 
-  const backToBingo = () => {
-    router.push("/bingo")
+  const backToOpdracht = () => {
+    router.push("/opdracht")
   }
 
   // Kies een willekeurige opdracht die de gast nog niet heeft gedaan en
@@ -274,7 +274,7 @@ export function PhotoUpload({
           </Button>
           {!directUploaden && (
             <Button
-              onClick={backToBingo}
+              onClick={backToOpdracht}
               variant={voltooideOpdracht ? "outline" : "default"}
               className="gap-2"
             >

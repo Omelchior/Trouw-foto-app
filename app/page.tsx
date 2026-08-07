@@ -24,7 +24,7 @@ import {
 } from "@/lib/bruiloft"
 
 const SNELKOPPELINGEN = [
-  { href: "/bingo", label: "Opdrachten", omschrijving: "Ga op fotomissie", icon: Target },
+  { href: "/opdracht", label: "Opdrachten", omschrijving: "Ga op fotomissie", icon: Target },
   { href: "/selectie", label: "Galerij", omschrijving: "Alle foto's", icon: Images },
   { href: "/info", label: "Info", omschrijving: "Programma & meer", icon: Info },
 ]
@@ -209,6 +209,7 @@ export default function HomePage() {
                 guestName={session.name}
                 completed={voltooid}
                 eersteOpdracht={eersteOpdracht}
+                huidigeOpdracht={session.huidige_opdracht}
                 photosByChallenge={photosByChallenge}
                 onChanged={laden}
               />

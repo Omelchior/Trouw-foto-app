@@ -17,10 +17,12 @@ import {
   MonitorPlay,
   BookOpen,
   Armchair,
+  Target,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { GuestListManager } from "@/components/guest-list-manager"
+import { OpdrachtenOverzicht } from "@/components/opdrachten-overzicht"
 import { Navigation } from "@/components/navigation"
 import { TafelIndeling } from "@/components/tafel-indeling"
 import { PhotoGrid } from "@/components/photo-grid"
@@ -275,7 +277,7 @@ export default function AdminPage() {
         </header>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsList className="grid w-full grid-cols-5 mb-6">
             <TabsTrigger value="guests" className="gap-2">
               <ClipboardList className="w-4 h-4" />
               <span className="hidden sm:inline">Gastenlijst</span>
@@ -283,6 +285,10 @@ export default function AdminPage() {
             <TabsTrigger value="tafels" className="gap-2">
               <Armchair className="w-4 h-4" />
               <span className="hidden sm:inline">Tafels</span>
+            </TabsTrigger>
+            <TabsTrigger value="opdrachten" className="gap-2">
+              <Target className="w-4 h-4" />
+              <span className="hidden sm:inline">Opdrachten</span>
             </TabsTrigger>
             <TabsTrigger value="photos" className="gap-2">
               <Images className="w-4 h-4" />
@@ -302,6 +308,10 @@ export default function AdminPage() {
 
           <TabsContent value="tafels">
             <TafelIndeling />
+          </TabsContent>
+
+          <TabsContent value="opdrachten">
+            <OpdrachtenOverzicht />
           </TabsContent>
 
           <TabsContent value="photos">

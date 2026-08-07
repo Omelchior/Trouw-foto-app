@@ -23,6 +23,8 @@ export interface UserProfile {
   label: string | null
   email: string | null
   completed_challenges: number[]
+  /** Zelfgekozen vervolg-opdracht die nog openstaat (null = geen gekozen). */
+  huidige_opdracht: number | null
 }
 
 export interface GuestSession extends UserProfile {
@@ -59,37 +61,90 @@ export interface Challenge {
   text: string
 }
 
-// 25 verbindings-opdrachten voor 5x5 bingo-kaart
+// 33 verbindings-opdrachten (swipebare carrousel)
 export const CHALLENGES: Challenge[] = [
   { id: 1,  text: 'Selfie met het bruidspaar' },
-  { id: 2,  text: 'Groepsfoto met 3 mensen die je vandaag voor het eerst ontmoet' },
+  { id: 2,  text: 'Groepsfoto met minimaal 2 mensen die je vandaag voor het eerst hebt ontmoet' },
   { id: 3,  text: 'Duo-foto met iemand uit een andere leeftijdsgroep (>20 jaar verschil)' },
-  { id: 4,  text: 'Foto met iemand die dezelfde schoenenmaat heeft' },
-  { id: 5,  text: 'Groepsfoto van mensen die >5 uur hebben gereisd' },
-  { id: 6,  text: 'Trio: jij + iemand van de familie van de bruid + iemand van de bruidegom' },
+  { id: 4,  text: 'Foto met iemand die dezelfde schoenmaat heeft' },
+  { id: 5,  text: 'Foto met de DJ van de avond' },
+  { id: 6,  text: 'Jij + iemand van de familie van de bruid + iemand van de familie van de bruidegom' },
   { id: 7,  text: 'Foto met iemand die dezelfde kleur draagt als jij' },
-  { id: 8,  text: 'Groep van 5+ mensen die allemaal op één knie zitten' },
+  { id: 8,  text: 'Foto waarop je met 5+ anderen proost' },
   { id: 9,  text: 'Foto met iemand wiens naam met dezelfde letter begint als die van jou' },
-  { id: 10, text: 'Selfie met iemand die >100 km rijdt voor de bruiloft' },
+  { id: 10, text: 'Foto met iemand die in een andere provincie woont dan jij' },
   { id: 11, text: 'Duo-foto waarin jullie hetzelfde gebaar maken' },
-  { id: 12, text: 'Foto met iemand die je al >10 jaar kent' },
-  { id: 13, text: 'Groepsfoto met alle mensen aan je tafel' },
-  { id: 14, text: 'Vraag een onbekende naar zijn favoriete herinnering aan het bruidspaar (foto erbij)' },
+  { id: 12, text: 'Foto met iemand waarop jullie het bruidspaar nadoen' },
+  { id: 13, text: 'Foto met een stel (anders dan het bruidspaar)' },
+  { id: 14, text: 'Foto met iemand die een biertje drinkt én iemand die een wijntje drinkt' },
   { id: 15, text: 'Foto met iemand ouder dan de bruid + iemand jonger dan de bruidegom' },
-  { id: 16, text: 'Twee gasten die elkaar een knuffel geven' },
-  { id: 17, text: 'Foto waarin iedereen naar hetzelfde punt wijst' },
-  { id: 18, text: 'Spiegel- of schaduwfoto met een andere gast' },
-  { id: 19, text: 'Foto met iemand die de eerste dans van het bruidspaar kent' },
-  { id: 20, text: 'Twee mensen die elkaar eerst niet kenden, nu samen lachen' },
-  { id: 21, text: 'Vraag iemand om zijn favoriete eigenschap van de bruid/bruidegom (foto erbij)' },
-  { id: 22, text: 'Groepsselfie: zo veel mogelijk mensen in één frame' },
-  { id: 23, text: 'Foto met iemand die iets unieks aanheeft' },
-  { id: 24, text: 'Duo van de jongste + oudste gast' },
-  { id: 25, text: 'Foto met iemand die al heeft gedanst vanavond' },
+  { id: 16, text: 'Foto met de langste of kortste persoon van het feest' },
+  { id: 17, text: 'Foto met iemand die een stropdas draagt' },
+  { id: 18, text: 'Foto met iemand die een snor heeft' },
+  { id: 19, text: 'Foto met iemand voor de bar' },
+  { id: 20, text: 'Foto met iemand van het personeel van de trouwlocatie' },
+  { id: 21, text: 'Foto samen met één van de ceremoniemeesters' },
+  { id: 22, text: 'Foto met iemand die een ander kledingstuk draagt dan jij' },
+  { id: 23, text: 'Foto met iemand die lekker aan het dansen is' },
+  { id: 24, text: 'Foto (samen met iemand anders) waarop iets roods te zien is' },
+  { id: 25, text: 'Foto (samen met iemand anders) waarop iets gouds te zien is' },
+  { id: 26, text: 'Foto vanuit kikkerperspectief, met zoveel mogelijk mensen erop' },
+  { id: 27, text: 'Foto samen met anderen waarop jullie samen één hart uitbeelden' },
+  { id: 28, text: 'Foto van mensen die hun handen in de lucht hebben tijdens het dansen' },
+  { id: 29, text: 'Foto met iemand die in dezelfde maand jarig is als jij' },
+  { id: 30, text: 'Foto samen met iemand waarop jullie in de lucht springen' },
+  { id: 31, text: 'Foto met iemand die dezelfde haarkleur heeft (of, net als jij, geen haar)' },
+  { id: 32, text: 'Foto samen met 2 anderen waarop jullie een gekke bek trekken' },
+  { id: 33, text: 'Foto samen met 5 mensen van het andere geslacht' },
 ]
 
 export function getChallenge(id: number): Challenge | undefined {
   return CHALLENGES.find(c => c.id === id)
+}
+
+/**
+ * Haal de (bewerkbare) opdracht-teksten uit de database als map id -> tekst.
+ * Leeg object bij een fout of zolang migratie 013 nog niet is uitgevoerd;
+ * de app valt dan terug op de hardcoded CHALLENGES-teksten.
+ */
+export async function getOpdrachtTeksten(): Promise<Record<number, string>> {
+  const supabase = createClient()
+  const { data, error } = await supabase.from('opdracht_teksten').select('id, tekst')
+  if (error || !data) return {}
+  const map: Record<number, string> = {}
+  for (const r of data as { id: number; tekst: string }[]) map[r.id] = r.tekst
+  return map
+}
+
+/** Beheer/ceremoniemeester past de tekst van één opdracht aan. */
+export async function zetOpdrachtTekst(id: number, tekst: string): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('opdracht_teksten')
+    .upsert({ id, tekst, bijgewerkt_op: new Date().toISOString() })
+  if (error) throw error
+}
+
+/** Voeg de bewerkte teksten samen met de standaardlijst (op id). */
+export function mergeOpdrachten(teksten: Record<number, string>): Challenge[] {
+  return CHALLENGES.map(c => ({ ...c, text: teksten[c.id] ?? c.text }))
+}
+
+/**
+ * De opdracht die een gast nu open heeft staan: eerst de door beheer
+ * toegewezen eerste opdracht (zolang niet gedaan), daarna de zelfgekozen
+ * vervolg-opdracht (zolang niet gedaan). Null = niets openstaand.
+ * Gedeeld door de opdracht-carrousel en het beheeroverzicht.
+ */
+export function berekenActieveOpdracht(
+  eerste: number | null,
+  completed: number[],
+  gekozen: number | null,
+): number | null {
+  const done = new Set(completed)
+  if (eerste != null && !done.has(eerste)) return eerste
+  if (gekozen != null && !done.has(gekozen)) return gekozen
+  return null
 }
 
 /**
@@ -246,12 +301,20 @@ export async function getCurrentProfile(): Promise<UserProfile | null> {
 
   const { data, error } = await supabase
     .from('user_profiles')
-    .select('user_id, name, role, label, email, completed_challenges')
+    .select('user_id, name, role, label, email, completed_challenges, huidige_opdracht')
     .eq('user_id', user.id)
     .maybeSingle()
 
-  if (error || !data) return null
-  return data as UserProfile
+  if (!error && data) return data as UserProfile
+
+  // Fallback zolang migratie 012 (huidige_opdracht-kolom) nog niet is uitgevoerd.
+  const oud = await supabase
+    .from('user_profiles')
+    .select('user_id, name, role, label, email, completed_challenges')
+    .eq('user_id', user.id)
+    .maybeSingle()
+  if (oud.error || !oud.data) return null
+  return { ...(oud.data as Omit<UserProfile, 'huidige_opdracht'>), huidige_opdracht: null }
 }
 
 /**
@@ -345,5 +408,16 @@ export async function markChallengeCompleted(challengeId: number): Promise<void>
   const { error } = await supabase.rpc('mark_challenge_completed', {
     p_challenge_id: challengeId,
   })
+  if (error) throw error
+}
+
+/**
+ * Zet (of wist met null) de zelfgekozen vervolg-opdracht van de ingelogde gast.
+ * Zo blijft de opdracht vast staan tot hij is afgerond en kan beheer live zien
+ * wie welke opdracht open heeft staan.
+ */
+export async function zetMijnOpdracht(challengeId: number | null): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase.rpc('zet_mijn_opdracht', { p_id: challengeId })
   if (error) throw error
 }

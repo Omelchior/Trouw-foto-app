@@ -9,15 +9,16 @@ import { WelcomeScreen } from "@/components/welcome-screen"
 import {
   getGuestSession,
   getMijnEersteOpdracht,
-  CHALLENGES,
   type GuestSession,
 } from "@/lib/guest"
+import { useOpdrachten } from "@/components/opdrachten-provider"
 import { createClient } from "@/lib/supabase/client"
 
-export default function BingoPage() {
+export default function OpdrachtPage() {
   const [session, setSession] = useState<GuestSession | null | "loading">("loading")
   const [eersteOpdracht, setEersteOpdracht] = useState<number | null>(null)
   const [photosByChallenge, setPhotosByChallenge] = useState<Record<number, OpdrachtFoto>>({})
+  const opdrachten = useOpdrachten()
 
   const loadSessionAndPhotos = async () => {
     const s = await getGuestSession()
@@ -80,7 +81,7 @@ export default function BingoPage() {
     })
 
     const profileChannel = supabase
-      .channel("bingo-profile-changes")
+      .channel("opdracht-profile-changes")
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "user_profiles" },
@@ -89,7 +90,7 @@ export default function BingoPage() {
       .subscribe()
 
     const photosChannel = supabase
-      .channel("bingo-photos-changes")
+      .channel("opdracht-photos-changes")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "photos" },
@@ -121,7 +122,7 @@ export default function BingoPage() {
   // Zo wordt een opdracht vanzelf weer beschikbaar als de foto is verwijderd
   // (de losse voortgang-markering kan achterlopen op de daadwerkelijke foto's).
   const voltooid = session.completed_challenges.filter((id) => photosByChallenge[id])
-  const total = CHALLENGES.length
+  const total = opdrachten.length
   const done = voltooid.length
 
   return (
@@ -153,6 +154,7 @@ export default function BingoPage() {
           guestName={session.name}
           completed={voltooid}
           eersteOpdracht={eersteOpdracht}
+          huidigeOpdracht={session.huidige_opdracht}
           photosByChallenge={photosByChallenge}
           onChanged={loadSessionAndPhotos}
         />

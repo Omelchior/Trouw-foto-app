@@ -10,7 +10,7 @@ import { getGuestSession, heeftBeheerToegang } from "@/lib/guest"
 
 const openItems = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/bingo", label: "Opdrachten", icon: Target },
+  { href: "/opdracht", label: "Opdrachten", icon: Target },
   { href: "/selectie", label: "Galerij", icon: Images },
   { href: "/info", label: "Info", icon: Info },
 ]

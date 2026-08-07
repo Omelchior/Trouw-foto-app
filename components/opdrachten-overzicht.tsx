@@ -1,15 +1,31 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Loader2, Camera, UserRound, Pencil, Check, X } from "lucide-react"
+import { Loader2, Camera, UserRound, Pencil, Check, X, Shuffle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { createClient } from "@/lib/supabase/client"
-import { berekenActieveOpdracht, zetOpdrachtTekst } from "@/lib/guest"
+import {
+  berekenActieveOpdracht,
+  zetOpdrachtTekst,
+  verplaatsGastOpdracht,
+  herverdeelOpdrachtenWillekeurig,
+} from "@/lib/guest"
 import { useOpdrachten } from "@/components/opdrachten-provider"
 import { toast } from "sonner"
 
 interface GuestRow {
+  id: string
   name: string
   eerste_opdracht: number | null
   claimed_user_id: string | null
@@ -27,9 +43,17 @@ interface PhotoRow {
   user_id: string | null
 }
 
+/** Gast met zijn actieve opdracht, zoals getoond onder "Moet doen". */
+interface OpenGast {
+  id: string
+  name: string
+  claimed_user_id: string | null
+}
+
 /**
- * Beheeroverzicht per foto-opdracht: bewerk de tekst, zie wie 'm nu open heeft
- * staan (de actieve opdracht van die gast) en wie 'm al gedaan heeft.
+ * Beheeroverzicht per foto-opdracht: bewerk de tekst, zie/verplaats wie 'm nu
+ * open heeft staan, en zie wie 'm al gedaan heeft. Ook: iedereen in één klik
+ * aan een nieuwe willekeurige opdracht koppelen.
  */
 export function OpdrachtenOverzicht() {
   const opdrachten = useOpdrachten()
@@ -42,10 +66,18 @@ export function OpdrachtenOverzicht() {
   const [editText, setEditText] = useState("")
   const [saving, setSaving] = useState(false)
 
+  // Gast verplaatsen naar een andere opdracht.
+  const [verplaatsId, setVerplaatsId] = useState<string | null>(null)
+  const [verplaatsBezig, setVerplaatsBezig] = useState(false)
+
+  // Iedereen opnieuw willekeurig verdelen.
+  const [herverdeelOpen, setHerverdeelOpen] = useState(false)
+  const [herverdeelBezig, setHerverdeelBezig] = useState(false)
+
   const laden = async () => {
     const supabase = createClient()
     const [g, pr, ph] = await Promise.all([
-      supabase.from("guests").select("name, eerste_opdracht, claimed_user_id"),
+      supabase.from("guests").select("id, name, eerste_opdracht, claimed_user_id"),
       supabase.from("user_profiles").select("user_id, completed_challenges, huidige_opdracht"),
       supabase
         .from("photos")
@@ -72,16 +104,15 @@ export function OpdrachtenOverzicht() {
     }
   }, [])
 
+  // ---- Tekst bewerken ----
   const startBewerken = (id: number, tekst: string) => {
     setEditId(id)
     setEditText(tekst)
   }
-
   const annuleer = () => {
     setEditId(null)
     setEditText("")
   }
-
   const bewaar = async (id: number) => {
     const tekst = editText.trim()
     if (!tekst) {
@@ -93,12 +124,45 @@ export function OpdrachtenOverzicht() {
       await zetOpdrachtTekst(id, tekst)
       toast.success(`Opdracht #${id} bijgewerkt`)
       annuleer()
-      // De provider vangt de wijziging via realtime op en ververst de teksten.
     } catch (e) {
       console.error("Tekst opslaan mislukt", e)
       toast.error("Opslaan mislukt, probeer het opnieuw")
     } finally {
       setSaving(false)
+    }
+  }
+
+  // ---- Gast verplaatsen ----
+  const verplaats = async (gast: OpenGast, doelId: number, vanaf: number) => {
+    if (doelId === vanaf) {
+      setVerplaatsId(null)
+      return
+    }
+    setVerplaatsBezig(true)
+    try {
+      await verplaatsGastOpdracht(gast.id, doelId, gast.claimed_user_id)
+      toast.success(`${gast.name} → opdracht #${doelId}`)
+      setVerplaatsId(null)
+    } catch (e) {
+      console.error("Verplaatsen mislukt", e)
+      toast.error("Verplaatsen mislukt, probeer het opnieuw")
+    } finally {
+      setVerplaatsBezig(false)
+    }
+  }
+
+  // ---- Iedereen willekeurig herverdelen ----
+  const herverdeel = async () => {
+    setHerverdeelBezig(true)
+    try {
+      const aantal = await herverdeelOpdrachtenWillekeurig()
+      toast.success(`${aantal} gasten aan een nieuwe willekeurige opdracht gekoppeld`)
+      setHerverdeelOpen(false)
+    } catch (e) {
+      console.error("Herverdelen mislukt", e)
+      toast.error("Herverdelen mislukt, probeer het opnieuw")
+    } finally {
+      setHerverdeelBezig(false)
     }
   }
 
@@ -110,7 +174,7 @@ export function OpdrachtenOverzicht() {
     for (const p of profiles) profielPer.set(p.user_id, p)
 
     // De opdracht die elke gast nu open heeft staan (via zijn profiel).
-    const moetDoen = new Map<number, string[]>()
+    const moetDoen = new Map<number, OpenGast[]>()
     for (const g of gastenLijst) {
       const prof = g.claimed_user_id ? profielPer.get(g.claimed_user_id) : undefined
       const actief = berekenActieveOpdracht(
@@ -120,7 +184,7 @@ export function OpdrachtenOverzicht() {
       )
       if (actief == null) continue
       const lijst = moetDoen.get(actief) ?? []
-      lijst.push(g.name)
+      lijst.push({ id: g.id, name: g.name, claimed_user_id: g.claimed_user_id })
       moetDoen.set(actief, lijst)
     }
 
@@ -149,7 +213,7 @@ export function OpdrachtenOverzicht() {
   const { moetDoen, gedaan } = perOpdracht
   const rijen = opdrachten.map((c) => ({
     ...c,
-    moetDoen: (moetDoen.get(c.id) ?? []).slice().sort((a, b) => a.localeCompare(b)),
+    moetDoen: (moetDoen.get(c.id) ?? []).slice().sort((a, b) => a.name.localeCompare(b.name)),
     alGedaan: [...(gedaan.get(c.id)?.values() ?? [])].sort((a, b) => a.localeCompare(b)),
   }))
   const aantalGedaan = rijen.filter((r) => r.alGedaan.length > 0).length
@@ -157,15 +221,26 @@ export function OpdrachtenOverzicht() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-        <span>
-          <strong className="text-foreground">{aantalGedaan}</strong> / {opdrachten.length} opdrachten
-          minstens één keer gedaan
-        </span>
-        <span>
-          <strong className="text-foreground">{totaalFotos}</strong> opdracht-foto&apos;s in totaal
-        </span>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+          <span>
+            <strong className="text-foreground">{aantalGedaan}</strong> / {opdrachten.length} opdrachten
+            minstens één keer gedaan
+          </span>
+          <span>
+            <strong className="text-foreground">{totaalFotos}</strong> opdracht-foto&apos;s in totaal
+          </span>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setHerverdeelOpen(true)} className="gap-2">
+          <Shuffle className="w-4 h-4" />
+          Herverdeel willekeurig
+        </Button>
       </div>
+
+      <p className="text-xs text-muted-foreground">
+        Tip: klik op een naam onder <span className="font-medium">Moet doen</span> om die gast naar een
+        andere opdracht te verplaatsen.
+      </p>
 
       <div className="space-y-2">
         {rijen.map((r) => (
@@ -212,7 +287,7 @@ export function OpdrachtenOverzicht() {
             </div>
 
             <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:pl-3 sm:border-l sm:border-border">
-              {/* Heeft 'm nu open staan */}
+              {/* Heeft 'm nu open staan (klik = verplaatsen) */}
               <div>
                 <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">
                   <UserRound className="w-3.5 h-3.5" />
@@ -222,14 +297,34 @@ export function OpdrachtenOverzicht() {
                   <p className="text-xs text-muted-foreground/70">Niemand</p>
                 ) : (
                   <div className="flex flex-wrap gap-1">
-                    {r.moetDoen.map((naam) => (
-                      <span
-                        key={naam}
-                        className="inline-flex items-center rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-foreground"
-                      >
-                        {naam}
-                      </span>
-                    ))}
+                    {r.moetDoen.map((gast) =>
+                      verplaatsId === gast.id ? (
+                        <select
+                          key={gast.id}
+                          autoFocus
+                          disabled={verplaatsBezig}
+                          defaultValue={r.id}
+                          onChange={(e) => verplaats(gast, parseInt(e.target.value, 10), r.id)}
+                          onBlur={() => setVerplaatsId(null)}
+                          className="rounded-md border border-primary bg-background px-1.5 py-0.5 text-xs max-w-[12rem]"
+                        >
+                          {opdrachten.map((o) => (
+                            <option key={o.id} value={o.id}>
+                              #{o.id} · {o.text.length > 34 ? o.text.slice(0, 34) + "…" : o.text}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <button
+                          key={gast.id}
+                          onClick={() => setVerplaatsId(gast.id)}
+                          title="Klik om te verplaatsen naar een andere opdracht"
+                          className="inline-flex items-center rounded-full border border-border bg-muted px-2 py-0.5 text-xs text-foreground hover:border-primary hover:bg-primary/10 transition-colors"
+                        >
+                          {gast.name}
+                        </button>
+                      )
+                    )}
                   </div>
                 )}
               </div>
@@ -259,6 +354,32 @@ export function OpdrachtenOverzicht() {
           </div>
         ))}
       </div>
+
+      <AlertDialog open={herverdeelOpen} onOpenChange={setHerverdeelOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Iedereen opnieuw verdelen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Elke gast krijgt een nieuwe willekeurige opdracht die hij nog niet heeft gedaan. Zelf
+              gekozen vervolg-opdrachten worden gewist. Reeds gemaakte foto&apos;s blijven staan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={herverdeelBezig}>Annuleer</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                herverdeel()
+              }}
+              disabled={herverdeelBezig}
+              className="gap-2"
+            >
+              {herverdeelBezig ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shuffle className="w-4 h-4" />}
+              Herverdeel
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

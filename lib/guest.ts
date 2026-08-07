@@ -116,6 +116,67 @@ export async function getOpdrachtTeksten(): Promise<Record<number, string>> {
   return map
 }
 
+/**
+ * Beheer verplaatst een gast naar een andere opdracht. Zet de toegewezen
+ * opdracht (guests.eerste_opdracht) en wist de zelfgekozen vervolg-opdracht
+ * (user_profiles.huidige_opdracht), zodat de nieuwe opdracht deterministisch de
+ * actieve opdracht wordt (zie berekenActieveOpdracht).
+ */
+export async function verplaatsGastOpdracht(
+  guestId: string,
+  targetId: number,
+  claimedUserId: string | null,
+): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('guests')
+    .update({ eerste_opdracht: targetId })
+    .eq('id', guestId)
+  if (error) throw error
+  if (claimedUserId) {
+    await supabase
+      .from('user_profiles')
+      .update({ huidige_opdracht: null })
+      .eq('user_id', claimedUserId)
+  }
+}
+
+/**
+ * Beheer koppelt iedereen aan een nieuwe willekeurige opdracht: per gast een
+ * random opdracht die hij nog niet heeft gedaan, en de zelfgekozen vervolg-
+ * opdracht van iedereen wordt gewist. Geeft het aantal bijgewerkte gasten terug.
+ */
+export async function herverdeelOpdrachtenWillekeurig(): Promise<number> {
+  const supabase = createClient()
+  const [gRes, pRes] = await Promise.all([
+    supabase.from('guests').select('id, claimed_user_id'),
+    supabase.from('user_profiles').select('user_id, completed_challenges'),
+  ])
+  const guests = (gRes.data as { id: string; claimed_user_id: string | null }[]) ?? []
+  const profiles = (pRes.data as { user_id: string; completed_challenges: number[] | null }[]) ?? []
+
+  const gedaanPer = new Map<string, Set<number>>()
+  for (const p of profiles) gedaanPer.set(p.user_id, new Set(p.completed_challenges ?? []))
+
+  const alleIds = CHALLENGES.map((c) => c.id)
+
+  await Promise.all(
+    guests.map((g) => {
+      const gedaan = g.claimed_user_id ? gedaanPer.get(g.claimed_user_id) ?? new Set<number>() : new Set<number>()
+      const open = alleIds.filter((id) => !gedaan.has(id))
+      const pool = open.length ? open : alleIds
+      const random = pool[Math.floor(Math.random() * pool.length)]
+      return supabase.from('guests').update({ eerste_opdracht: random }).eq('id', g.id)
+    }),
+  )
+
+  // Zelfgekozen vervolg-opdracht van iedereen wissen, zodat de nieuwe
+  // toegewezen opdracht de actieve is. (user_id is PK, dus dit raakt alle rijen.)
+  await supabase.from('user_profiles').update({ huidige_opdracht: null }).not('user_id', 'is', null)
+
+  return guests.length
+}
+
 /** Beheer/ceremoniemeester past de tekst van één opdracht aan. */
 export async function zetOpdrachtTekst(id: number, tekst: string): Promise<void> {
   const supabase = createClient()

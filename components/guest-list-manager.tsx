@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { createClient } from "@/lib/supabase/client"
-import { zetAanwezigheidVoor, AANWEZIGHEID_OPTIES, CHALLENGES, type Aanwezigheid } from "@/lib/guest"
+import { zetAanwezigheidVoor, AANWEZIGHEID_OPTIES, type Aanwezigheid } from "@/lib/guest"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -44,7 +44,6 @@ interface GuestRow {
   groep: string | null
   dagdeel: "dag" | "avond" | null
   dieetwensen: string | null
-  eerste_opdracht: number | null
   opmerkingen: string | null
   relatie: string | null
   naamkaartje: string | null
@@ -89,7 +88,7 @@ function uniqueSlug(base: string, existing: Set<string>): string {
 }
 
 const VELDEN =
-  "id, slug, name, phone, role, label, claimed_user_id, aanwezigheid, groep, dagdeel, dieetwensen, eerste_opdracht, opmerkingen, relatie, naamkaartje, tafel"
+  "id, slug, name, phone, role, label, claimed_user_id, aanwezigheid, groep, dagdeel, dieetwensen, opmerkingen, relatie, naamkaartje, tafel"
 
 interface Draft {
   name: string
@@ -99,7 +98,6 @@ interface Draft {
   groep: string
   dagdeel: "" | "dag" | "avond"
   dieetwensen: string
-  eerste_opdracht: string
   opmerkingen: string
   relatie: string
   naamkaartje: string
@@ -115,7 +113,6 @@ function toDraft(g: GuestRow): Draft {
     groep: g.groep ?? "",
     dagdeel: g.dagdeel ?? "",
     dieetwensen: g.dieetwensen ?? "",
-    eerste_opdracht: g.eerste_opdracht?.toString() ?? "",
     opmerkingen: g.opmerkingen ?? "",
     relatie: g.relatie ?? "",
     naamkaartje: g.naamkaartje ?? "",
@@ -131,7 +128,6 @@ export function GuestListManager() {
   const [filterStatus, setFilterStatus] = useState<"" | Aanwezigheid>("")
   const [filterGroep, setFilterGroep] = useState("")
   const [filterDagdeel, setFilterDagdeel] = useState<"" | "dag" | "avond" | "alleen-avond">("")
-  const [filterOpdracht, setFilterOpdracht] = useState("")
 
   // Add form
   const [addName, setAddName] = useState("")
@@ -188,7 +184,6 @@ export function GuestListManager() {
       if (filterDagdeel === "dag" && g.dagdeel !== "dag") return false
       if (filterDagdeel === "avond" && g.dagdeel !== "dag" && g.dagdeel !== "avond") return false
       if (filterDagdeel === "alleen-avond" && g.dagdeel !== "avond") return false
-      if (filterOpdracht && g.eerste_opdracht !== parseInt(filterOpdracht, 10)) return false
       if (!q) return true
       return (
         g.name.toLowerCase().includes(q) ||
@@ -200,7 +195,7 @@ export function GuestListManager() {
         (g.dieetwensen ?? "").toLowerCase().includes(q)
       )
     })
-  }, [list, query, filterStatus, filterGroep, filterDagdeel, filterOpdracht])
+  }, [list, query, filterStatus, filterGroep, filterDagdeel])
 
   const telling = useMemo(() => {
     const t: Record<Aanwezigheid, number> = { aangemeld: 0, waarschijnlijk: 0, onzeker: 0, afwezig: 0 }
@@ -258,12 +253,6 @@ export function GuestListManager() {
       toast.error("Naam mag niet leeg zijn")
       return
     }
-    const opdracht = draft.eerste_opdracht.trim() ? parseInt(draft.eerste_opdracht, 10) : null
-    if (opdracht !== null && (isNaN(opdracht) || opdracht < 1 || opdracht > CHALLENGES.length)) {
-      toast.error(`Eerste opdracht moet een nummer van 1 t/m ${CHALLENGES.length} zijn`)
-      return
-    }
-
     setSaving(true)
     const supabase = createClient()
     const { error } = await supabase
@@ -276,7 +265,6 @@ export function GuestListManager() {
         groep: draft.groep.trim() || null,
         dagdeel: draft.dagdeel || null,
         dieetwensen: draft.dieetwensen.trim() || null,
-        eerste_opdracht: opdracht,
         opmerkingen: draft.opmerkingen.trim() || null,
         relatie: draft.relatie.trim() || null,
         naamkaartje: draft.naamkaartje.trim() || null,
@@ -426,17 +414,6 @@ export function GuestListManager() {
           <option value="avond">Avondgasten (incl. dag)</option>
           <option value="alleen-avond">Alleen avond</option>
         </select>
-        <select
-          value={filterOpdracht}
-          onChange={(e) => setFilterOpdracht(e.target.value)}
-          className="h-10 rounded-md border border-input bg-background px-2 text-sm"
-          title="Filter op eerste foto-opdracht"
-        >
-          <option value="">Alle opdrachten</option>
-          {Array.from({ length: CHALLENGES.length }, (_, i) => i + 1).map((n) => (
-            <option key={n} value={n}>Opdracht #{n}</option>
-          ))}
-        </select>
       </div>
 
       <p className="text-xs text-muted-foreground mb-3">
@@ -522,18 +499,6 @@ export function GuestListManager() {
                               <option key={t} value={t}>Tafel {t}</option>
                             ))}
                           </select>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Eerste foto-opdracht (1-{CHALLENGES.length})</Label>
-                          <Input
-                            type="number"
-                            min={1}
-                            max={CHALLENGES.length}
-                            value={draft.eerste_opdracht}
-                            onChange={(e) => zetVeld("eerste_opdracht", e.target.value)}
-                            className="h-10"
-                            placeholder="bijv. 7"
-                          />
                         </div>
                         <div className="space-y-1">
                           <Label className="text-xs">Allergieën & dieetwensen</Label>

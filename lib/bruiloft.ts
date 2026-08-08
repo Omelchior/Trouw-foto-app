@@ -15,7 +15,6 @@ export function isAppOpen(): boolean {
 export const GESLOTEN_VOOR_TROUWDAG = [
   "/opdracht",
   "/selectie",
-  "/gastenboek",
   "/diavoorstelling",
 ]
 

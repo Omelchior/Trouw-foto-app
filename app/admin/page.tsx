@@ -7,7 +7,6 @@ import {
   Loader2,
   LogOut,
   Images,
-  MessageCircle,
   Download,
   Trash2,
   CheckSquare,
@@ -27,7 +26,6 @@ import { Navigation } from "@/components/navigation"
 import { TafelIndeling } from "@/components/tafel-indeling"
 import { PhotoGrid } from "@/components/photo-grid"
 import { PhotoLightbox } from "@/components/photo-lightbox"
-import { GuestbookFeed } from "@/components/guestbook-feed"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
 import {
@@ -50,25 +48,17 @@ interface Photo {
   url?: string
 }
 
-interface GuestbookEntry {
-  id: string
-  guest_name: string
-  message: string
-  created_at: string
-}
-
 export default function AdminPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [photos, setPhotos] = useState<Photo[]>([])
-  const [guestbookEntries, setGuestbookEntries] = useState<GuestbookEntry[]>([])
   const [lightboxPhoto, setLightboxPhoto] = useState<Photo | null>(null)
   const [activeTab, setActiveTab] = useState("guests")
   const [selectionMode, setSelectionMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [itemToDelete, setItemToDelete] = useState<{ type: "photo" | "guestbook", id: string } | null>(null)
+  const [itemToDelete, setItemToDelete] = useState<{ type: "photo", id: string } | null>(null)
 
   const checkAuth = useCallback(async () => {
     const supabase = createClient()
@@ -101,20 +91,6 @@ export default function AdminPage() {
     }
   }
 
-  const fetchGuestbook = async () => {
-    const supabase = createClient()
-    const { data, error } = await supabase
-      .from("guestbook_entries")
-      .select("*")
-      .order("created_at", { ascending: false })
-
-    if (error) {
-      console.error("Error fetching guestbook:", error)
-    } else {
-      setGuestbookEntries(data || [])
-    }
-  }
-
   useEffect(() => {
     checkAuth()
   }, [checkAuth])
@@ -123,7 +99,6 @@ export default function AdminPage() {
     if (!isAuthenticated) return
 
     fetchPhotos()
-    fetchGuestbook()
 
     const supabase = createClient()
 
@@ -132,14 +107,8 @@ export default function AdminPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "photos" }, () => fetchPhotos())
       .subscribe()
 
-    const guestbookChannel = supabase
-      .channel("admin-guestbook-changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "guestbook_entries" }, () => fetchGuestbook())
-      .subscribe()
-
     return () => {
       supabase.removeChannel(photosChannel)
-      supabase.removeChannel(guestbookChannel)
     }
   }, [isAuthenticated])
 
@@ -152,11 +121,6 @@ export default function AdminPage() {
 
   const handleDeletePhoto = async (id: string) => {
     setItemToDelete({ type: "photo", id })
-    setDeleteDialogOpen(true)
-  }
-
-  const handleDeleteGuestbook = async (id: string) => {
-    setItemToDelete({ type: "guestbook", id })
     setDeleteDialogOpen(true)
   }
 
@@ -174,11 +138,6 @@ export default function AdminPage() {
           toast.success("Foto verwijderd")
           fetchPhotos()
         }
-      } else if (itemToDelete.type === "guestbook") {
-        const { error } = await supabase.from("guestbook_entries").delete().eq("id", itemToDelete.id)
-        if (error) throw error
-        toast.success("Bericht verwijderd")
-        fetchGuestbook()
       }
     } catch (error) {
       console.error("Delete error:", error)
@@ -277,7 +236,7 @@ export default function AdminPage() {
         </header>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5 mb-6">
+          <TabsList className="grid w-full grid-cols-4 mb-6">
             <TabsTrigger value="guests" className="gap-2">
               <ClipboardList className="w-4 h-4" />
               <span className="hidden sm:inline">Gastenlijst</span>
@@ -294,11 +253,6 @@ export default function AdminPage() {
               <Images className="w-4 h-4" />
               <span className="hidden sm:inline">Foto's</span>
               <span>({photos.length})</span>
-            </TabsTrigger>
-            <TabsTrigger value="guestbook" className="gap-2">
-              <MessageCircle className="w-4 h-4" />
-              <span className="hidden sm:inline">Gastenboek</span>
-              <span>({guestbookEntries.length})</span>
             </TabsTrigger>
           </TabsList>
 
@@ -357,14 +311,6 @@ export default function AdminPage() {
             />
           </TabsContent>
 
-          <TabsContent value="guestbook">
-            <GuestbookFeed
-              entries={guestbookEntries}
-              isAdmin
-              onDelete={handleDeleteGuestbook}
-            />
-          </TabsContent>
-
         </Tabs>
       </div>
 
@@ -383,7 +329,6 @@ export default function AdminPage() {
             <AlertDialogTitle>Weet je het zeker?</AlertDialogTitle>
             <AlertDialogDescription>
               {itemToDelete?.type === "photo" && "Deze foto wordt permanent verwijderd."}
-              {itemToDelete?.type === "guestbook" && "Dit bericht wordt permanent verwijderd."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -161,6 +161,20 @@ export function OpdrachtCarousel({
     }
   }
 
+  // Op de homepage staat altijd een concrete opdracht klaar. Is er niets
+  // openstaand (eerste opdracht gedaan, nog geen nieuwe gekozen), kies dan
+  // automatisch de volgende en leg 'm vast, zodat de homepage en de
+  // Opdrachten-pagina dezelfde opdracht tonen.
+  const autoBezig = useRef(false)
+  useEffect(() => {
+    if (!compact || actief != null || allesGedaan || autoBezig.current) return
+    autoBezig.current = true
+    nogEenOpdracht().finally(() => {
+      autoBezig.current = false
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [compact, actief, allesGedaan])
+
   const scrollBij = (richting: -1 | 1) => {
     const el = scrollRef.current
     if (el) el.scrollBy({ left: richting * el.clientWidth * 0.8, behavior: "smooth" })
@@ -253,6 +267,12 @@ export function OpdrachtCarousel({
           <p className="text-sm text-muted-foreground">
             Je hebt álle {opdrachten.length} opdrachten gedaan. 🎉
           </p>
+        </>
+      ) : compact ? (
+        /* Homepage: de volgende opdracht wordt automatisch klaargezet */
+        <>
+          <Loader2 className="w-7 h-7 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Je volgende opdracht komt eraan…</p>
         </>
       ) : (
         <>

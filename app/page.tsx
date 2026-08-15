@@ -18,10 +18,14 @@ import {
 import { createClient } from "@/lib/supabase/client"
 import {
   TROUWDATUM_TEKST,
+  APP_OPEN_TEKST,
   isAppOpen,
   countdownTekst,
-  volgendProgrammapunt,
 } from "@/lib/bruiloft"
+import { startTijdmachine } from "@/lib/tijdmachine"
+
+// Lokaal de trouwdag bekijken met ?nu=...; in productie gebeurt er niets.
+startTijdmachine()
 
 const SNELKOPPELINGEN = [
   { href: "/opdracht", label: "Opdrachten", omschrijving: "Ga op fotomissie", icon: Target },
@@ -75,9 +79,14 @@ export default function HomePage() {
   // De eigen opdracht-foto's, zodat de carrousel weet wat al gedaan is.
   const [photosByChallenge, setPhotosByChallenge] = useState<Record<number, OpdrachtFoto>>({})
 
-  // In een effect zodat server- en client-render niet verschillen.
+  // In een effect zodat server- en client-render niet verschillen. Elke
+  // seconde bijwerken: de laatste minuut telt per seconde af en zo klapt de
+  // app precies om 20:30 vanzelf open.
   useEffect(() => {
-    setCountdown(countdownTekst())
+    const bijwerken = () => setCountdown(countdownTekst())
+    bijwerken()
+    const id = setInterval(bijwerken, 1_000)
+    return () => clearInterval(id)
   }, [])
 
   // Sessie, aanwezigheid, gekoppelde opdracht en eigen opdracht-foto's laden.
@@ -126,7 +135,6 @@ export default function HomePage() {
 
   // Beheer en ceremoniemeesters zien de volledige app ook vóór de trouwdag.
   const open = isAppOpen() || session.is_privileged
-  const programmapunt = volgendProgrammapunt()
 
   // Een opdracht geldt als voltooid zolang er ook echt een foto voor is.
   const voltooid = session.completed_challenges.filter((id) => photosByChallenge[id])
@@ -164,36 +172,15 @@ export default function HomePage() {
           <h1 className="font-serif text-4xl font-bold text-foreground mb-1">
             Olaf &amp; Ester
           </h1>
-          <p className="font-medium text-primary mb-2">{TROUWDATUM_TEKST}</p>
+          <p className="font-medium text-primary mb-1">{TROUWDATUM_TEKST}</p>
+          {/* Bewust geen pill/badge: dat leest als een knop. */}
           {countdown && (
-            <span className="inline-block rounded-full bg-primary/10 px-4 py-1 text-sm font-medium text-primary">
-              {countdown}
-            </span>
+            <p className="text-sm text-muted-foreground">{countdown}</p>
           )}
         </header>
 
         {open ? (
           <>
-            {programmapunt && (
-              <Link
-                href="/info"
-                className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:bg-muted/60 transition-colors"
-              >
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <Clock className="w-5 h-5 text-primary" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs text-primary font-medium uppercase tracking-wide">
-                    Straks om {programmapunt.tijd} uur
-                  </p>
-                  <p className="font-medium text-foreground">
-                    {programmapunt.titel}: {programmapunt.omschrijving}
-                  </p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
-              </Link>
-            )}
-
             <div>
               <div className="text-center mb-4">
                 <h2 className="font-serif text-xl font-bold text-foreground">
@@ -239,7 +226,7 @@ export default function HomePage() {
             {!isAppOpen() && (
               <p className="text-center text-xs text-muted-foreground">
                 Jij ziet als beheerder alvast alles; gasten kunnen pas op de
-                trouwdag aan de slag.
+                trouwdag vanaf {APP_OPEN_TEKST} aan de slag.
               </p>
             )}
           </>
@@ -288,12 +275,13 @@ export default function HomePage() {
                 <Lock className="w-5 h-5 text-muted-foreground" />
               </div>
               <p className="font-medium text-foreground">
-                De rest van de app opent op de trouwdag
+                De rest van de app opent om {APP_OPEN_TEKST} op de trouwdag
               </p>
               <p className="text-sm text-muted-foreground">
-                Vanaf {TROUWDATUM_TEKST.toLowerCase()} deel je hier je mooiste
-                foto&apos;s, ga je op pad met leuke foto-opdrachten en bewonder
-                je alle kiekjes van iedereen in de galerij. Tot dan!
+                Vanaf {APP_OPEN_TEKST} op {TROUWDATUM_TEKST.toLowerCase()} deel
+                je hier je mooiste foto&apos;s, ga je op pad met leuke
+                foto-opdrachten en bewonder je alle kiekjes van iedereen in de
+                galerij. Tot dan!
               </p>
             </div>
           </>

@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { beheerToken, BEHEER_COOKIE } from '@/lib/beheer'
-import { TROUWDAG_START_MS, GESLOTEN_VOOR_TROUWDAG } from '@/lib/bruiloft'
+import { APP_OPEN_MS, GESLOTEN_VOOR_TROUWDAG } from '@/lib/bruiloft'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -81,10 +81,10 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // Vóór de trouwdag zijn de gastenpagina's gesloten (alleen info en de
-  // startpagina); beheer en ceremoniemeesters mogen er wel al in.
+  // Tot 20:30 op de trouwdag zijn de gastenpagina's gesloten (alleen info en
+  // de startpagina); beheer en ceremoniemeesters mogen er wel al in.
   if (
-    Date.now() < TROUWDAG_START_MS &&
+    Date.now() < APP_OPEN_MS &&
     GESLOTEN_VOOR_TROUWDAG.some((p) => path.startsWith(p))
   ) {
     if (!user) {

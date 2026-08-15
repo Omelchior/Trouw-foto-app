@@ -6,9 +6,15 @@ export const TROUWDATUM_TEKST = "Vrijdag 21 augustus 2026"
 /** 21 augustus 2026, 00:00 Nederlandse tijd (CEST = UTC+2). */
 export const TROUWDAG_START_MS = Date.UTC(2026, 7, 20, 22, 0, 0)
 
-/** Vanaf de trouwdag mogen gasten alles in de app; daarvoor alleen de info. */
+/** Het tijdstip waarop de app voor gasten opengaat: 20:30 op de trouwdag. */
+export const APP_OPEN_MS = TROUWDAG_START_MS + 20.5 * 3_600_000
+
+/** Tekst bij het openingsmoment, voor gebruik in de gastenteksten. */
+export const APP_OPEN_TEKST = "20:30"
+
+/** Vanaf 20:30 op de trouwdag mogen gasten alles; daarvoor alleen de info. */
 export function isAppOpen(): boolean {
-  return Date.now() >= TROUWDAG_START_MS
+  return Date.now() >= APP_OPEN_MS
 }
 
 /** Gastenpagina's die pas op de trouwdag opengaan (beheer mag altijd). */
@@ -43,16 +49,35 @@ export const PROGRAMMA_AVOND: Programmapunt[] = [
   { tijd: "00:30", titel: "Einde", omschrijving: "Wel thuis!", uren: 24.5 },
 ]
 
-/** "Nog X dagen", "Vandaag is het zover!" of null (na de bruiloft). */
+/**
+ * "Nog X dagen" tot de trouwdag, op de dag zelf aftellend naar 20:30, en
+ * daarna het feestbericht tot het einde van de trouwdag (dan null).
+ */
 export function countdownTekst(): string | null {
+  const nu = Date.now()
+
+  if (nu >= APP_OPEN_MS) {
+    // Blijft de rest van de trouwdag staan; daarna geen countdown meer.
+    return nu < TROUWDAG_START_MS + 86_400_000
+      ? "Het feest is begonnen! 🎉"
+      : null
+  }
+
   const trouwdag = new Date(2026, 7, 21)
-  const vandaag = new Date()
+  const vandaag = new Date(nu)
   vandaag.setHours(0, 0, 0, 0)
   const dagen = Math.round((trouwdag.getTime() - vandaag.getTime()) / 86_400_000)
   if (dagen > 1) return `Nog ${dagen} dagen`
   if (dagen === 1) return "Nog 1 dag!"
-  if (dagen === 0) return "Vandaag is het zover! 🎉"
-  return null
+
+  // Op de trouwdag zelf telt hij af naar het openingsmoment.
+  const resterend = APP_OPEN_MS - nu
+  const uren = Math.floor(resterend / 3_600_000)
+  const minuten = Math.floor((resterend % 3_600_000) / 60_000)
+  if (uren > 0) return `Nog ${uren} uur en ${minuten} min`
+  if (minuten > 0) return `Nog ${minuten} min`
+  // De laatste minuut telt per seconde af.
+  return `Nog ${Math.ceil(resterend / 1000)} sec`
 }
 
 /** Het eerstvolgende programmapunt op de trouwdag zelf, anders null. */

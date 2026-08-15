@@ -14,6 +14,9 @@ import {
   Gauge,
   Images,
   Heart,
+  Shuffle,
+  Minus,
+  Plus,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
@@ -35,10 +38,14 @@ function hoortInShow(p: Pick<Photo, "challenge_id" | "is_selected">): boolean {
   return p.challenge_id != null || p.is_selected
 }
 
-// Beschikbare tempo's (seconden per foto)
-const SPEEDS = [4, 6, 8, 10, 15]
+// Duur per dia (seconden) — instelbaar tussen deze grenzen
+const MIN_SECONDS = 1
+const MAX_SECONDS = 120
+const DEFAULT_SECONDS = 6
 const CONTROLS_HIDE_MS = 3500
 const FADE_MS = 1200
+
+const clampSeconds = (n: number) => Math.min(MAX_SECONDS, Math.max(MIN_SECONDS, Math.round(n)))
 
 function buildUrl(supabase: ReturnType<typeof createClient>, storagePath: string): string {
   return supabase.storage.from("wedding-photos").getPublicUrl(storagePath).data.publicUrl
@@ -79,12 +86,15 @@ export default function DiavoorstellingPage() {
   const [currentId, setCurrentId] = useState<string | null>(null)
   const [prevId, setPrevId] = useState<string | null>(null)
   const [isPlaying, setIsPlaying] = useState(true)
-  const [speedIdx, setSpeedIdx] = useState(1) // default 6s
+  const [slideSeconds, setSlideSeconds] = useState(DEFAULT_SECONDS)
+  const [shuffle, setShuffle] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [controlsVisible, setControlsVisible] = useState(true)
 
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Kijkgeschiedenis: zodat "vorige" ook in willekeurige modus netjes terugloopt
+  const historyRef = useRef<string[]>([])
 
   // --- Auth gate (admin of ceremoniemeester = ingelogde user) ---
   useEffect(() => {
@@ -165,11 +175,34 @@ export default function DiavoorstellingPage() {
     (direction: 1 | -1) => {
       setCurrentId((curr) => {
         if (photos.length === 0) return curr
-        const i = photos.findIndex((p) => p.id === curr)
-        const baseIndex = i === -1 ? 0 : i
-        const nextIndex = (baseIndex + direction + photos.length) % photos.length
-        const nextId = photos[nextIndex].id
+
+        let nextId: string
+        if (direction === -1 && historyRef.current.length > 0) {
+          // Terug in de kijkgeschiedenis; sla ondertussen verwijderde foto's over
+          let candidate = historyRef.current.pop() ?? null
+          while (candidate && !photos.some((p) => p.id === candidate) && historyRef.current.length > 0) {
+            candidate = historyRef.current.pop() ?? null
+          }
+          nextId = candidate && photos.some((p) => p.id === candidate) ? candidate : (curr ?? photos[0].id)
+        } else if (shuffle) {
+          // Willekeurige volgende dia (nooit dezelfde als de huidige)
+          let idx = Math.floor(Math.random() * photos.length)
+          if (photos.length > 1) {
+            while (photos[idx].id === curr) idx = Math.floor(Math.random() * photos.length)
+          }
+          nextId = photos[idx].id
+        } else {
+          const i = photos.findIndex((p) => p.id === curr)
+          const baseIndex = i === -1 ? 0 : i
+          nextId = photos[(baseIndex + direction + photos.length) % photos.length].id
+        }
+
         if (nextId !== curr) {
+          // Vooruit? Bewaar de huidige dia zodat "vorige" terugloopt
+          if (direction === 1 && curr) {
+            historyRef.current.push(curr)
+            if (historyRef.current.length > 500) historyRef.current.shift()
+          }
           setPrevId(curr)
           if (fadeTimer.current) clearTimeout(fadeTimer.current)
           fadeTimer.current = setTimeout(() => setPrevId(null), FADE_MS)
@@ -177,16 +210,15 @@ export default function DiavoorstellingPage() {
         return nextId
       })
     },
-    [photos],
+    [photos, shuffle],
   )
 
   // --- Auto-advance ---
   useEffect(() => {
     if (!isPlaying || photos.length < 2) return
-    const ms = SPEEDS[speedIdx] * 1000
-    const timer = setInterval(() => goTo(1), ms)
+    const timer = setInterval(() => goTo(1), slideSeconds * 1000)
     return () => clearInterval(timer)
-  }, [isPlaying, speedIdx, photos.length, currentId, goTo])
+  }, [isPlaying, slideSeconds, photos.length, currentId, goTo])
 
   // --- Bediening verbergen na inactiviteit ---
   const showControls = useCallback(() => {
@@ -225,10 +257,17 @@ export default function DiavoorstellingPage() {
       showControls()
       if (e.key === "ArrowRight") goTo(1)
       else if (e.key === "ArrowLeft") goTo(-1)
-      else if (e.key === " ") {
+      else if (e.key === "ArrowUp") {
+        e.preventDefault()
+        setSlideSeconds((s) => clampSeconds(s + 1))
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault()
+        setSlideSeconds((s) => clampSeconds(s - 1))
+      } else if (e.key === " ") {
         e.preventDefault()
         setIsPlaying((p) => !p)
-      } else if (e.key === "f") toggleFullscreen()
+      } else if (e.key === "s" || e.key === "S") setShuffle((s) => !s)
+      else if (e.key === "f") toggleFullscreen()
       else if (e.key === "Escape" && !document.fullscreenElement) router.push("/admin")
     }
     document.addEventListener("keydown", onKey)
@@ -384,20 +423,62 @@ export default function DiavoorstellingPage() {
           <ChevronRight className="w-7 h-7" />
         </Button>
 
+        {/* Willekeurige volgorde aan/uit */}
         <Button
+          size="icon"
           variant="ghost"
-          className="text-white hover:bg-white/20 rounded-full gap-2 ml-2"
-          onClick={() => setSpeedIdx((i) => (i + 1) % SPEEDS.length)}
-          title="Snelheid aanpassen"
+          className={cn(
+            "rounded-full w-12 h-12",
+            shuffle ? "text-primary bg-white/20 hover:bg-white/30" : "text-white hover:bg-white/20",
+          )}
+          onClick={() => setShuffle((s) => !s)}
+          title={shuffle ? "Willekeurig aan (s)" : "Willekeurig uit (s)"}
         >
-          <Gauge className="w-5 h-5" />
-          {SPEEDS[speedIdx]}s
+          <Shuffle className="w-6 h-6" />
         </Button>
+
+        {/* Duur per dia zelf instellen (seconden) */}
+        <div
+          className="flex items-center gap-1 ml-2 text-white bg-white/10 rounded-full pl-3 pr-1.5 py-1"
+          title="Seconden per dia (↑/↓)"
+        >
+          <Gauge className="w-5 h-5 mr-1 shrink-0" />
+          <button
+            type="button"
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors"
+            onClick={() => setSlideSeconds((s) => clampSeconds(s - 1))}
+            title="Korter"
+          >
+            <Minus className="w-4 h-4" />
+          </button>
+          <div className="flex items-baseline">
+            <input
+              type="number"
+              min={MIN_SECONDS}
+              max={MAX_SECONDS}
+              value={slideSeconds}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10)
+                if (!Number.isNaN(v)) setSlideSeconds(clampSeconds(v))
+              }}
+              className="w-8 bg-transparent text-center text-base font-medium tabular-nums outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            />
+            <span className="text-sm text-white/70">s</span>
+          </div>
+          <button
+            type="button"
+            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors"
+            onClick={() => setSlideSeconds((s) => clampSeconds(s + 1))}
+            title="Langer"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
 
         <Button
           size="icon"
           variant="ghost"
-          className="text-white hover:bg-white/20 rounded-full w-12 h-12"
+          className="text-white hover:bg-white/20 rounded-full w-12 h-12 ml-1"
           onClick={toggleFullscreen}
           title="Volledig scherm (f)"
         >

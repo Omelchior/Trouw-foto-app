@@ -1,7 +1,7 @@
 "use client"
 
 import { Suspense, useState, useEffect } from "react"
-import { Images, Loader2, Camera, ChevronUp, Heart, Target } from "lucide-react"
+import { Images, Loader2, Camera, ChevronUp, Heart, Target, CheckSquare, Square, Download, X } from "lucide-react"
 import { PhotoGrid } from "@/components/photo-grid"
 import { PhotoLightbox } from "@/components/photo-lightbox"
 import { PhotoUpload } from "@/components/photo-upload"
@@ -10,7 +10,19 @@ import { LogoutButton } from "@/components/logout-button"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 import { getGuestSession, getChallenge, type GuestSession } from "@/lib/guest"
+import { downloadFotos } from "@/lib/foto-download"
+import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface Photo {
   id: string
@@ -31,6 +43,15 @@ export default function SelectiePage() {
   const [activeTab, setActiveTab] = useState("alle")
   const [session, setSession] = useState<GuestSession | null>(null)
   const [uploadOpen, setUploadOpen] = useState(false)
+
+  // Selecteren + downloaden.
+  const [selectionMode, setSelectionMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [downloadVoortgang, setDownloadVoortgang] = useState<{ done: number; total: number } | null>(null)
+
+  // Eigen foto verwijderen.
+  const [photoToDelete, setPhotoToDelete] = useState<Photo | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const fetchPhotos = async () => {
     const supabase = createClient()
@@ -97,6 +118,81 @@ export default function SelectiePage() {
       : activeTab === "mijn"
         ? [...mijnOpdrachtFotos, ...mijnAlgemeneFotos]
         : photos
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const stopSelecteren = () => {
+    setSelectionMode(false)
+    setSelectedIds(new Set())
+  }
+
+  const allesGeselecteerd = displayPhotos.length > 0 && displayPhotos.every((p) => selectedIds.has(p.id))
+  const toggleAlles = () => {
+    setSelectedIds((prev) => {
+      if (allesGeselecteerd) {
+        const next = new Set(prev)
+        displayPhotos.forEach((p) => next.delete(p.id))
+        return next
+      }
+      const next = new Set(prev)
+      displayPhotos.forEach((p) => next.add(p.id))
+      return next
+    })
+  }
+
+  const downloadSelectie = async () => {
+    const teDownloaden = photos.filter((p) => selectedIds.has(p.id))
+    if (teDownloaden.length === 0) return
+    setDownloadVoortgang({ done: 0, total: teDownloaden.length })
+    try {
+      const mislukt = await downloadFotos(teDownloaden, (done, total) =>
+        setDownloadVoortgang({ done, total }),
+      )
+      if (mislukt > 0) toast.warning(`${teDownloaden.length - mislukt} gedownload, ${mislukt} mislukt`)
+      else toast.success(`${teDownloaden.length} foto's gedownload`)
+      stopSelecteren()
+    } catch (e) {
+      console.error("Download mislukt", e)
+      toast.error("Downloaden mislukt, probeer het opnieuw")
+    } finally {
+      setDownloadVoortgang(null)
+    }
+  }
+
+  const confirmDeleteOwn = async () => {
+    if (!photoToDelete) return
+    setDeleting(true)
+    const supabase = createClient()
+    try {
+      await supabase.storage.from("wedding-photos").remove([photoToDelete.storage_path])
+      const { error } = await supabase.from("photos").delete().eq("id", photoToDelete.id)
+      if (error) throw error
+      toast.success("Foto verwijderd")
+      setPhotoToDelete(null)
+      fetchPhotos()
+    } catch (e) {
+      console.error("Verwijderen mislukt", e)
+      toast.error("Verwijderen mislukt, probeer het opnieuw")
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  // Gemeenschappelijke props voor elke PhotoGrid (selecteren + eigen verwijderen).
+  const gridProps = {
+    selectionMode,
+    selectedIds,
+    onToggleSelect: toggleSelect,
+    currentUserId: session?.user_id,
+    onDeleteOwn: (photo: Photo) => setPhotoToDelete(photo),
+  }
 
   return (
     <main className="min-h-screen pb-20">
@@ -183,6 +279,53 @@ export default function SelectiePage() {
           </TabsList>
         </Tabs>
 
+        {/* Selecteren + downloaden */}
+        {!isLoading && photos.length > 0 && (
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            {!selectionMode ? (
+              <Button variant="outline" size="sm" onClick={() => setSelectionMode(true)} className="gap-2">
+                <Square className="w-4 h-4" />
+                Selecteer om te downloaden
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" size="sm" onClick={toggleAlles} className="gap-2">
+                  {allesGeselecteerd ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                  {allesGeselecteerd ? "Deselecteer alles" : "Selecteer alles"}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={downloadSelectie}
+                  disabled={selectedIds.size === 0 || downloadVoortgang !== null}
+                  className="gap-2"
+                >
+                  {downloadVoortgang ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {downloadVoortgang.done}/{downloadVoortgang.total}
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      Download ({selectedIds.size})
+                    </>
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={stopSelecteren}
+                  disabled={downloadVoortgang !== null}
+                  className="gap-2"
+                >
+                  <X className="w-4 h-4" />
+                  Klaar
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Content */}
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
@@ -191,7 +334,7 @@ export default function SelectiePage() {
         ) : activeTab === "opdrachten" ? (
           /* Per opdracht gegroepeerd: zo zie je wat er per opdracht is geüpload */
           opdrachtGroepen.length === 0 ? (
-            <PhotoGrid photos={[]} onPhotoClick={setLightboxPhoto} />
+            <PhotoGrid photos={[]} onPhotoClick={setLightboxPhoto} {...gridProps} />
           ) : (
             <div className="space-y-8">
               {opdrachtGroepen.map(([id, fotos]) => (
@@ -205,7 +348,7 @@ export default function SelectiePage() {
                       <span className="text-muted-foreground">({fotos.length})</span>
                     </p>
                   </div>
-                  <PhotoGrid photos={fotos} onPhotoClick={setLightboxPhoto} />
+                  <PhotoGrid photos={fotos} onPhotoClick={setLightboxPhoto} {...gridProps} />
                 </section>
               ))}
             </div>
@@ -224,7 +367,7 @@ export default function SelectiePage() {
                 </h2>
               </div>
               {mijnOpdrachtFotos.length > 0 ? (
-                <PhotoGrid photos={mijnOpdrachtFotos} onPhotoClick={setLightboxPhoto} toonFotoboek />
+                <PhotoGrid photos={mijnOpdrachtFotos} onPhotoClick={setLightboxPhoto} toonFotoboek {...gridProps} />
               ) : (
                 <p className="text-sm text-muted-foreground">
                   Nog geen opdracht-foto&apos;s — ga naar Opdrachten om te beginnen!
@@ -243,7 +386,7 @@ export default function SelectiePage() {
                 </h2>
               </div>
               {mijnAlgemeneFotos.length > 0 ? (
-                <PhotoGrid photos={mijnAlgemeneFotos} onPhotoClick={setLightboxPhoto} toonFotoboek />
+                <PhotoGrid photos={mijnAlgemeneFotos} onPhotoClick={setLightboxPhoto} toonFotoboek {...gridProps} />
               ) : (
                 <p className="text-sm text-muted-foreground">
                   Nog geen algemene foto&apos;s — deel je mooiste momenten van vandaag!
@@ -262,6 +405,7 @@ export default function SelectiePage() {
           <PhotoGrid
             photos={displayPhotos}
             onPhotoClick={setLightboxPhoto}
+            {...gridProps}
           />
         )}
       </div>
@@ -274,6 +418,32 @@ export default function SelectiePage() {
         onClose={() => setLightboxPhoto(null)}
         onNavigate={setLightboxPhoto}
       />
+
+      <AlertDialog open={photoToDelete !== null} onOpenChange={(open) => !open && setPhotoToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Jouw foto verwijderen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deze foto wordt definitief verwijderd en verdwijnt uit de galerij. Dit kan niet ongedaan
+              worden gemaakt.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Annuleer</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                confirmDeleteOwn()
+              }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
+            >
+              {deleting && <Loader2 className="w-4 h-4 animate-spin" />}
+              Verwijder
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   )
 }

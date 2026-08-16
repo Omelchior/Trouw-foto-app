@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Heart, Check, X, Download, Loader2 } from "lucide-react"
+import { Heart, Check, X, Download, Loader2, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -12,6 +12,7 @@ interface Photo {
   uploaded_at: string
   is_selected: boolean
   challenge_id?: number | null
+  user_id?: string | null
   in_fotoboek?: boolean
   url?: string
 }
@@ -27,6 +28,10 @@ interface PhotoGridProps {
   onToggleSelection?: (id: string, selected: boolean) => void
   /** Toon een hartje op foto's die de gast voor het fotoboek heeft gekozen. */
   toonFotoboek?: boolean
+  /** De ingelogde gast; nodig om diens eigen foto's een verwijderknop te geven. */
+  currentUserId?: string
+  /** Gast verwijdert een eigen foto (met bevestiging door de pagina). */
+  onDeleteOwn?: (photo: Photo) => void
 }
 
 export function PhotoGrid({
@@ -38,7 +43,9 @@ export function PhotoGrid({
   isAdmin = false,
   onDelete,
   onToggleSelection,
-  toonFotoboek = false
+  toonFotoboek = false,
+  currentUserId,
+  onDeleteOwn,
 }: PhotoGridProps) {
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({})
 
@@ -100,10 +107,27 @@ export function PhotoGrid({
             </div>
           )}
 
-          {/* Fotoboek-hartje (eigen keuze van de gast) */}
-          {toonFotoboek && photo.in_fotoboek && !selectionMode && !isAdmin && (
-            <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-primary/90 flex items-center justify-center">
-              <Heart className="w-3.5 h-3.5 text-white fill-white" />
+          {/* Rechtsboven (gastweergave): fotoboek-hartje + verwijderknop voor
+              eigen foto's. Altijd zichtbaar, want hover werkt niet op telefoons. */}
+          {!selectionMode && !isAdmin && (
+            <div className="absolute top-2 right-2 flex items-center gap-1">
+              {toonFotoboek && photo.in_fotoboek && (
+                <span className="w-6 h-6 rounded-full bg-primary/90 flex items-center justify-center">
+                  <Heart className="w-3.5 h-3.5 text-white fill-white" />
+                </span>
+              )}
+              {currentUserId && photo.user_id === currentUserId && onDeleteOwn && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDeleteOwn(photo)
+                  }}
+                  aria-label="Mijn foto verwijderen"
+                  className="w-7 h-7 rounded-full bg-foreground/50 hover:bg-destructive text-white flex items-center justify-center backdrop-blur-sm transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           )}
 

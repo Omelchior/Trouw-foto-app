@@ -87,7 +87,7 @@ export default function DiavoorstellingPage() {
   const [prevId, setPrevId] = useState<string | null>(null)
   const [isPlaying, setIsPlaying] = useState(true)
   const [slideSeconds, setSlideSeconds] = useState(DEFAULT_SECONDS)
-  const [shuffle, setShuffle] = useState(false)
+  const [shuffle, setShuffle] = useState(true)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [controlsVisible, setControlsVisible] = useState(true)
 
@@ -95,6 +95,13 @@ export default function DiavoorstellingPage() {
   const fadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Kijkgeschiedenis: zodat "vorige" ook in willekeurige modus netjes terugloopt
   const historyRef = useRef<string[]>([])
+  // Shuffle-wachtrij: elke foto komt één keer langs, daarna opnieuw geschud
+  const shuffleQueueRef = useRef<string[]>([])
+
+  // Nieuwe geschudde volgorde bij aan-/uitzetten van willekeurig
+  useEffect(() => {
+    shuffleQueueRef.current = []
+  }, [shuffle])
 
   // --- Auth gate (admin of ceremoniemeester = ingelogde user) ---
   useEffect(() => {
@@ -185,12 +192,23 @@ export default function DiavoorstellingPage() {
           }
           nextId = candidate && photos.some((p) => p.id === candidate) ? candidate : (curr ?? photos[0].id)
         } else if (shuffle) {
-          // Willekeurige volgende dia (nooit dezelfde als de huidige)
-          let idx = Math.floor(Math.random() * photos.length)
-          if (photos.length > 1) {
-            while (photos[idx].id === curr) idx = Math.floor(Math.random() * photos.length)
+          // Shuffle-bag: eerst alle huidige foto's één keer (in willekeurige
+          // volgorde), daarna wordt de lijst opnieuw geschud en begint hij weer.
+          let queue = shuffleQueueRef.current.filter((id) => photos.some((p) => p.id === id))
+          if (queue.length === 0) {
+            queue = photos.map((p) => p.id)
+            for (let i = queue.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1))
+              ;[queue[i], queue[j]] = [queue[j], queue[i]]
+            }
+            // Voorkom dat de nieuwe ronde meteen met de huidige foto begint
+            if (queue.length > 1 && queue[0] === curr) {
+              const k = 1 + Math.floor(Math.random() * (queue.length - 1))
+              ;[queue[0], queue[k]] = [queue[k], queue[0]]
+            }
           }
-          nextId = photos[idx].id
+          nextId = queue.shift() ?? curr ?? photos[0].id
+          shuffleQueueRef.current = queue
         } else {
           const i = photos.findIndex((p) => p.id === curr)
           const baseIndex = i === -1 ? 0 : i
@@ -214,11 +232,20 @@ export default function DiavoorstellingPage() {
   )
 
   // --- Auto-advance ---
+  // De laatste goTo in een ref, zodat de timer hieronder niet opnieuw hoeft te
+  // starten telkens als de fotolijst verandert. Anders zou elke binnenkomende
+  // upload de teller resetten en zou de show bij een uploadpiek "hangen".
+  const goToRef = useRef(goTo)
   useEffect(() => {
-    if (!isPlaying || photos.length < 2) return
-    const timer = setInterval(() => goTo(1), slideSeconds * 1000)
+    goToRef.current = goTo
+  }, [goTo])
+
+  const canPlay = photos.length >= 2
+  useEffect(() => {
+    if (!isPlaying || !canPlay) return
+    const timer = setInterval(() => goToRef.current(1), slideSeconds * 1000)
     return () => clearInterval(timer)
-  }, [isPlaying, slideSeconds, photos.length, currentId, goTo])
+  }, [isPlaying, slideSeconds, canPlay])
 
   // --- Bediening verbergen na inactiviteit ---
   const showControls = useCallback(() => {
@@ -362,8 +389,8 @@ export default function DiavoorstellingPage() {
         </Button>
       </div>
 
-      {/* Wie de foto maakte en voor welke opdracht — altijd in beeld */}
-      {current && (
+      {/* Naam + opdracht alleen tonen bij opdracht-foto's; vrije foto's blijven anoniem */}
+      {current && current.challenge_id != null && (
         <div className="absolute bottom-24 inset-x-0 px-4 text-center space-y-2">
           <div>
             <span className="inline-flex items-center gap-2 text-white/90 text-lg font-serif bg-black/30 backdrop-blur px-4 py-2 rounded-full">
@@ -371,18 +398,16 @@ export default function DiavoorstellingPage() {
               {current.uploaded_by}
             </span>
           </div>
-          {current.challenge_id != null && (
-            <div>
-              <span className="inline-flex items-center gap-2 max-w-[90vw] text-white/80 text-sm bg-black/30 backdrop-blur px-4 py-1.5 rounded-full">
-                <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-white text-[10px] font-bold shrink-0">
-                  {current.challenge_id}
-                </span>
-                <span className="truncate">
-                  {getChallenge(current.challenge_id)?.text ?? `Opdracht ${current.challenge_id}`}
-                </span>
+          <div>
+            <span className="inline-flex items-center gap-2 max-w-[90vw] text-white/80 text-sm bg-black/30 backdrop-blur px-4 py-1.5 rounded-full">
+              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-white text-[10px] font-bold shrink-0">
+                {current.challenge_id}
               </span>
-            </div>
-          )}
+              <span className="truncate">
+                {getChallenge(current.challenge_id)?.text ?? `Opdracht ${current.challenge_id}`}
+              </span>
+            </span>
+          </div>
         </div>
       )}
 

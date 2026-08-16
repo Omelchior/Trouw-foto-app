@@ -17,6 +17,21 @@ export function isAppOpen(): boolean {
   return Date.now() >= APP_OPEN_MS
 }
 
+/** Handmatige beheer-schakelaar voor de app-toegang. */
+export type OpenModus = 'auto' | 'open' | 'dicht'
+
+/**
+ * Is de app open voor gasten, met inachtneming van de beheer-schakelaar?
+ *  - 'auto'  → volgt de tijd (open vanaf 20:30 op de trouwdag)
+ *  - 'open'  → nu geforceerd open (noodschakelaar / eerder beginnen)
+ *  - 'dicht' → geforceerd gesloten (uit-knop, ook na de trouwdag)
+ */
+export function effectiveOpen(modus: OpenModus, nu: number = Date.now()): boolean {
+  if (modus === 'open') return true
+  if (modus === 'dicht') return false
+  return nu >= APP_OPEN_MS
+}
+
 /** Gastenpagina's die pas op de trouwdag opengaan (beheer mag altijd). */
 export const GESLOTEN_VOOR_TROUWDAG = [
   "/opdracht",

@@ -5,7 +5,8 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Target, Images, Info, Home, Shield } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { isAppOpen } from "@/lib/bruiloft"
+import { effectiveOpen } from "@/lib/bruiloft"
+import { useOpenModus } from "@/lib/app-status"
 import { getGuestSession, heeftBeheerToegang } from "@/lib/guest"
 
 const openItems = [
@@ -30,6 +31,7 @@ export function Navigation() {
   // bovendien een Beheer-knop in het menu.
   const [privileged, setPrivileged] = useState(false)
   const [beheerKnop, setBeheerKnop] = useState(false)
+  const modus = useOpenModus()
 
   useEffect(() => {
     let active = true
@@ -43,7 +45,7 @@ export function Navigation() {
     }
   }, [])
 
-  const basisItems = isAppOpen() || privileged ? openItems : geslotenItems
+  const basisItems = effectiveOpen(modus) || privileged ? openItems : geslotenItems
   const navItems = beheerKnop ? [...basisItems, beheerItem] : basisItems
 
   return (

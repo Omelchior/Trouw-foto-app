@@ -19,9 +19,10 @@ import { createClient } from "@/lib/supabase/client"
 import {
   TROUWDATUM_TEKST,
   APP_OPEN_TEKST,
-  isAppOpen,
+  effectiveOpen,
   countdownTekst,
 } from "@/lib/bruiloft"
+import { useOpenModus } from "@/lib/app-status"
 import { startTijdmachine } from "@/lib/tijdmachine"
 
 // Lokaal de trouwdag bekijken met ?nu=...; in productie gebeurt er niets.
@@ -69,6 +70,7 @@ async function laadOpdrachtFotos(userId: string): Promise<Record<number, Opdrach
 }
 
 export default function HomePage() {
+  const modus = useOpenModus()
   const [session, setSession] = useState<GuestSession | null | "loading">("loading")
   // Ingelogd maar nog niet aangemeld? Dan blijft het welkomscherm staan
   // zodat de aanmeld-bevestiging daar kan worden afgerond.
@@ -134,7 +136,9 @@ export default function HomePage() {
   }
 
   // Beheer en ceremoniemeesters zien de volledige app ook vóór de trouwdag.
-  const open = isAppOpen() || session.is_privileged
+  const gastenOpen = effectiveOpen(modus)
+  const open = gastenOpen || session.is_privileged
+  const forcedDicht = modus === "dicht"
 
   // Een opdracht geldt als voltooid zolang er ook echt een foto voor is.
   const voltooid = session.completed_challenges.filter((id) => photosByChallenge[id])
@@ -173,8 +177,9 @@ export default function HomePage() {
             Olaf &amp; Ester
           </h1>
           <p className="font-medium text-primary mb-1">{TROUWDATUM_TEKST}</p>
-          {/* Bewust geen pill/badge: dat leest als een knop. */}
-          {countdown && (
+          {/* Bewust geen pill/badge: dat leest als een knop. De countdown alleen
+              in automatische modus; bij handmatig open/dicht klopt hij niet. */}
+          {modus === "auto" && countdown && (
             <p className="text-sm text-muted-foreground">{countdown}</p>
           )}
         </header>
@@ -223,10 +228,11 @@ export default function HomePage() {
               })}
             </div>
 
-            {!isAppOpen() && (
+            {!gastenOpen && (
               <p className="text-center text-xs text-muted-foreground">
-                Jij ziet als beheerder alvast alles; gasten kunnen pas op de
-                trouwdag vanaf {APP_OPEN_TEKST} aan de slag.
+                {forcedDicht
+                  ? "Jij ziet als beheerder alvast alles; de app is voor gasten momenteel gesloten."
+                  : `Jij ziet als beheerder alvast alles; gasten kunnen pas op de trouwdag vanaf ${APP_OPEN_TEKST} aan de slag.`}
               </p>
             )}
           </>
@@ -275,13 +281,21 @@ export default function HomePage() {
                 <Lock className="w-5 h-5 text-muted-foreground" />
               </div>
               <p className="font-medium text-foreground">
-                De rest van de app opent om {APP_OPEN_TEKST} op de trouwdag
+                {forcedDicht
+                  ? "De app is momenteel gesloten"
+                  : `De rest van de app opent om ${APP_OPEN_TEKST} op de trouwdag`}
               </p>
               <p className="text-sm text-muted-foreground">
-                Vanaf {APP_OPEN_TEKST} op {TROUWDATUM_TEKST.toLowerCase()} deel
-                je hier je mooiste foto&apos;s, ga je op pad met leuke
-                foto-opdrachten en bewonder je alle kiekjes van iedereen in de
-                galerij. Tot dan!
+                {forcedDicht ? (
+                  "Kom straks nog eens terug — dan kun je hier je mooiste foto's delen, op pad met leuke foto-opdrachten en alle kiekjes in de galerij bekijken."
+                ) : (
+                  <>
+                    Vanaf {APP_OPEN_TEKST} op {TROUWDATUM_TEKST.toLowerCase()}{" "}
+                    deel je hier je mooiste foto&apos;s, ga je op pad met leuke
+                    foto-opdrachten en bewonder je alle kiekjes van iedereen in
+                    de galerij. Tot dan!
+                  </>
+                )}
               </p>
             </div>
           </>

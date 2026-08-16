@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { beheerToken, BEHEER_COOKIE } from '@/lib/beheer'
-import { APP_OPEN_MS, GESLOTEN_VOOR_TROUWDAG } from '@/lib/bruiloft'
+import { GESLOTEN_VOOR_TROUWDAG, effectiveOpen, type OpenModus } from '@/lib/bruiloft'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -81,23 +81,33 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // Tot 20:30 op de trouwdag zijn de gastenpagina's gesloten (alleen info en
-  // de startpagina); beheer en ceremoniemeesters mogen er wel al in.
-  if (
-    Date.now() < APP_OPEN_MS &&
-    GESLOTEN_VOOR_TROUWDAG.some((p) => path.startsWith(p))
-  ) {
-    if (!user) {
-      return redirectTo('/')
-    }
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('role')
-      .eq('user_id', user.id)
+  // De gastenpagina's zijn gesloten tot de app opengaat: standaard om 20:30 op
+  // de trouwdag, maar het beheer kan dit handmatig overrulen (nu openen / dicht
+  // houden) via de app_status-schakelaar. Beheer en ceremoniemeesters mogen er
+  // altijd al in.
+  if (GESLOTEN_VOOR_TROUWDAG.some((p) => path.startsWith(p))) {
+    let modus: OpenModus = 'auto'
+    const { data: status } = await supabase
+      .from('app_status')
+      .select('open_modus')
+      .eq('id', 1)
       .maybeSingle()
-    const role = profile?.role as string | undefined
-    if (role !== 'admin' && role !== 'ceremony_master') {
-      return redirectTo('/info')
+    const gelezen = (status as { open_modus?: OpenModus } | null)?.open_modus
+    if (gelezen) modus = gelezen
+
+    if (!effectiveOpen(modus)) {
+      if (!user) {
+        return redirectTo('/')
+      }
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      const role = profile?.role as string | undefined
+      if (role !== 'admin' && role !== 'ceremony_master') {
+        return redirectTo('/info')
+      }
     }
   }
 

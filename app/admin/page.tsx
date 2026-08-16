@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { AppStatusSchakelaar } from "@/components/app-status-schakelaar"
 import { GuestListManager } from "@/components/guest-list-manager"
 import { OpdrachtenOverzicht } from "@/components/opdrachten-overzicht"
 import { Navigation } from "@/components/navigation"
@@ -234,6 +235,8 @@ export default function AdminPage() {
             </Button>
           </div>
         </header>
+
+        <AppStatusSchakelaar />
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-4 mb-6">

@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Heart, Check, X, Download, Loader2, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { downloadFoto } from "@/lib/foto-download"
 import { cn } from "@/lib/utils"
 
 interface Photo {
@@ -180,8 +181,9 @@ export function PhotoGrid({
                 className="w-8 h-8"
                 onClick={(e) => {
                   e.stopPropagation()
-                  window.open(photo.url, '_blank')
+                  handleAction(photo.id, () => downloadFoto(photo))
                 }}
+                disabled={loadingStates[photo.id]}
               >
                 <Download className="w-4 h-4" />
               </Button>

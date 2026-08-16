@@ -1,9 +1,11 @@
 "use client"
 
-import { useEffect } from "react"
-import { X, ChevronLeft, ChevronRight, Heart, Download, Target } from "lucide-react"
+import { useEffect, useState } from "react"
+import { X, ChevronLeft, ChevronRight, Heart, Download, Target, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getChallenge } from "@/lib/guest"
+import { downloadFoto } from "@/lib/foto-download"
+import { toast } from "sonner"
 
 interface Photo {
   id: string
@@ -24,6 +26,20 @@ interface PhotoLightboxProps {
 
 export function PhotoLightbox({ photo, photos, onClose, onNavigate }: PhotoLightboxProps) {
   const currentIndex = photo ? photos.findIndex(p => p.id === photo.id) : -1
+  const [downloading, setDownloading] = useState(false)
+
+  const handleDownload = async () => {
+    if (!photo || downloading) return
+    setDownloading(true)
+    try {
+      await downloadFoto(photo)
+    } catch (e) {
+      console.error("Download mislukt", e)
+      toast.error("Downloaden mislukt, probeer het opnieuw")
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   useEffect(() => {
     if (!photo) return
@@ -116,9 +132,10 @@ export function PhotoLightbox({ photo, photos, onClose, onNavigate }: PhotoLight
             size="sm"
             variant="secondary"
             className="gap-2"
-            onClick={() => window.open(photo.url, '_blank')}
+            onClick={handleDownload}
+            disabled={downloading}
           >
-            <Download className="w-4 h-4" />
+            {downloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             Download
           </Button>
         </div>

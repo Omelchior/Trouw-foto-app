@@ -22,6 +22,21 @@ function bestandsnaam(p: DownloadFoto): string {
   return `${wie}-${p.id.slice(0, 8)}.${ext}`
 }
 
+/** Download één foto als bestand (i.p.v. openen in een nieuw tabblad). */
+export async function downloadFoto(foto: DownloadFoto): Promise<void> {
+  const supabase = createClient()
+  const { data, error } = await supabase.storage.from('wedding-photos').download(foto.storage_path)
+  if (error || !data) throw error ?? new Error('geen data')
+  const url = URL.createObjectURL(data)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = bestandsnaam(foto)
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
 /**
  * Bundel de opgegeven foto's in één zip en download die.
  * onVoortgang wordt na elke opgehaalde foto aangeroepen (de zip-stap zelf is

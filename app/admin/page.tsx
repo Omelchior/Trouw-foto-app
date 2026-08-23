@@ -46,6 +46,7 @@ interface Photo {
   uploaded_by: string
   uploaded_at: string
   is_selected: boolean
+  media_type?: string | null
   url?: string
 }
 
@@ -212,7 +213,7 @@ export default function AdminPage() {
             <div>
               <h1 className="font-serif text-xl font-bold">Beheer Dashboard</h1>
               <p className="text-sm text-muted-foreground">
-                {photos.length} foto's, {selectedPhotos.length} geselecteerd
+                {photos.length} foto's/video's, {selectedPhotos.length} geselecteerd
               </p>
             </div>
           </div>

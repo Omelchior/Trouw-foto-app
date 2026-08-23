@@ -1,9 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { Heart, Check, X, Download, Loader2, Trash2 } from "lucide-react"
+import { Heart, Check, X, Download, Loader2, Trash2, Play } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { downloadFoto } from "@/lib/foto-download"
+import { isVideoItem } from "@/lib/media"
 import { cn } from "@/lib/utils"
 
 interface Photo {
@@ -15,6 +16,7 @@ interface Photo {
   challenge_id?: number | null
   user_id?: string | null
   in_fotoboek?: boolean
+  media_type?: string | null
   url?: string
 }
 
@@ -65,7 +67,7 @@ export function PhotoGrid({
         <div className="mx-auto w-20 h-20 rounded-full bg-secondary flex items-center justify-center mb-4">
           <Heart className="w-10 h-10 text-muted-foreground" />
         </div>
-        <p className="text-lg text-muted-foreground">Nog geen foto's geupload</p>
+        <p className="text-lg text-muted-foreground">Nog niets geüpload</p>
       </div>
     )
   }
@@ -87,12 +89,30 @@ export function PhotoGrid({
             }
           }}
         >
-          <img
-            src={photo.url || "/placeholder.svg"}
-            alt={`Foto van ${photo.uploaded_by}`}
-            className="w-full h-full object-cover rounded-lg"
-            loading="lazy"
-          />
+          {isVideoItem(photo) ? (
+            <>
+              {/* #t=0.1 dwingt browsers een echt beeldje te laten zien i.p.v. zwart */}
+              <video
+                src={`${photo.url}#t=0.1`}
+                className="w-full h-full object-cover rounded-lg bg-secondary"
+                muted
+                playsInline
+                preload="metadata"
+              />
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <span className="w-10 h-10 rounded-full bg-foreground/50 text-white flex items-center justify-center backdrop-blur-sm">
+                  <Play className="w-5 h-5 fill-current" />
+                </span>
+              </div>
+            </>
+          ) : (
+            <img
+              src={photo.url || "/placeholder.svg"}
+              alt={`Foto van ${photo.uploaded_by}`}
+              className="w-full h-full object-cover rounded-lg"
+              loading="lazy"
+            />
+          )}
           
           {/* Overlay with uploader name (altijd zichtbaar; hover werkt niet op telefoons) */}
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-foreground/60 to-transparent p-3 rounded-b-lg">

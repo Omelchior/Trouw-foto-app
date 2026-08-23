@@ -33,6 +33,7 @@ interface Photo {
   challenge_id?: number | null
   user_id?: string | null
   in_fotoboek?: boolean
+  media_type?: string | null
   url?: string // generated from storage_path
 }
 
@@ -211,7 +212,7 @@ export default function SelectiePage() {
             Fotogalerij
           </h1>
           <p className="text-muted-foreground">
-            Alle foto's van de bruiloft
+            Alle foto&apos;s en video&apos;s van de bruiloft
           </p>
         </header>
 
@@ -224,11 +225,12 @@ export default function SelectiePage() {
               </div>
               <div className="min-w-0">
                 <h2 className="font-serif text-lg font-bold text-foreground leading-tight">
-                  Deel je foto&apos;s van de hele dag
+                  Deel je foto&apos;s en video&apos;s van de hele dag
                 </h2>
                 <p className="text-sm text-muted-foreground">
-                  Ceremonie, borrel, feest — upload al je mooiste kiekjes hier,
-                  zodat iedereen ze kan zien. Je hoeft er geen opdracht voor te doen!
+                  Ceremonie, borrel, feest — upload al je mooiste kiekjes en korte
+                  video&apos;s hier, zodat iedereen ze kan zien. Je hoeft er geen
+                  opdracht voor te doen!
                 </p>
               </div>
             </div>
@@ -245,7 +247,7 @@ export default function SelectiePage() {
               ) : (
                 <>
                   <Camera className="w-5 h-5" />
-                  Foto&apos;s toevoegen
+                  Foto&apos;s of video&apos;s toevoegen
                 </>
               )}
             </Button>
@@ -254,6 +256,7 @@ export default function SelectiePage() {
                 <Suspense fallback={null}>
                   <PhotoUpload
                     directUploaden
+                    videosToegestaan
                     guestName={session.name}
                     userId={session.user_id}
                     onUploadComplete={fetchPhotos}
@@ -379,7 +382,7 @@ export default function SelectiePage() {
               <div className="flex items-center gap-2 mb-3">
                 <Heart className="w-4 h-4 text-primary shrink-0" />
                 <h2 className="font-medium text-foreground">
-                  Algemene foto&apos;s{" "}
+                  Foto&apos;s &amp; video&apos;s{" "}
                   <span className="text-muted-foreground font-normal">
                     ({mijnAlgemeneFotos.length})
                   </span>
@@ -389,7 +392,7 @@ export default function SelectiePage() {
                 <PhotoGrid photos={mijnAlgemeneFotos} onPhotoClick={setLightboxPhoto} toonFotoboek {...gridProps} />
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Nog geen algemene foto&apos;s — deel je mooiste momenten van vandaag!
+                  Nog niets gedeeld — upload hierboven je mooiste momenten van vandaag!
                 </p>
               )}
             </section>

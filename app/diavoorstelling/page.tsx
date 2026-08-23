@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 import { getChallenge } from "@/lib/guest"
+import { isVideoItem } from "@/lib/media"
 import { cn } from "@/lib/utils"
 
 interface Photo {
@@ -30,11 +31,19 @@ interface Photo {
   uploaded_at: string
   is_selected: boolean
   challenge_id?: number | null
+  media_type?: string | null
   url: string
 }
 
-/** De show draait op opdracht-foto's + foto's die via het beheer zijn geselecteerd. */
-function hoortInShow(p: Pick<Photo, "challenge_id" | "is_selected">): boolean {
+/**
+ * De show draait op opdracht-foto's + foto's die via het beheer zijn
+ * geselecteerd. Video's slaan we over: die passen niet in de fade/ken-burns-
+ * loop en zouden zonder geluid als zwart beeld voorbijkomen.
+ */
+function hoortInShow(
+  p: Pick<Photo, "challenge_id" | "is_selected" | "media_type"> & { storage_path?: string },
+): boolean {
+  if (isVideoItem(p)) return false
   return p.challenge_id != null || p.is_selected
 }
 
@@ -131,7 +140,9 @@ export default function DiavoorstellingPage() {
       if (error) {
         console.error("Error fetching photos:", error)
       } else {
-        const withUrls = (data || []).map((p) => ({ ...p, url: buildUrl(supabase, p.storage_path) }))
+        const withUrls = (data || [])
+          .filter(hoortInShow)
+          .map((p) => ({ ...p, url: buildUrl(supabase, p.storage_path) }))
         setPhotos(withUrls)
         setCurrentId((prev) => prev ?? withUrls[0]?.id ?? null)
       }

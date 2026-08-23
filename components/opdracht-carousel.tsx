@@ -12,7 +12,7 @@ import {
   zetMijnOpdracht,
 } from "@/lib/guest"
 import { useOpdrachten } from "@/components/opdrachten-provider"
-import { uploadFoto, MAX_FILE_SIZE } from "@/lib/foto-upload"
+import { uploadFoto, isVideo, MAX_FILE_SIZE } from "@/lib/foto-upload"
 import { cn } from "@/lib/utils"
 
 export interface OpdrachtFoto {
@@ -108,6 +108,11 @@ export function OpdrachtCarousel({
     input.onchange = (e) => {
       const f = (e.target as HTMLInputElement).files?.[0]
       if (!f) return
+      // Sommige telefoons negeren accept="image/*"; een opdracht blijft een foto.
+      if (isVideo(f)) {
+        toast.error("Voor een opdracht kies je een foto — video's deel je in de galerij")
+        return
+      }
       if (f.size > MAX_FILE_SIZE) {
         toast.error("Foto te groot (max 10MB)")
         return

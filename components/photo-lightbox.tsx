@@ -5,6 +5,7 @@ import { X, ChevronLeft, ChevronRight, Heart, Download, Target, Loader2 } from "
 import { Button } from "@/components/ui/button"
 import { getChallenge } from "@/lib/guest"
 import { downloadFoto } from "@/lib/foto-download"
+import { isVideoItem } from "@/lib/media"
 import { toast } from "sonner"
 
 interface Photo {
@@ -14,6 +15,7 @@ interface Photo {
   uploaded_at: string
   is_selected: boolean
   challenge_id?: number | null
+  media_type?: string | null
   url?: string
 }
 
@@ -101,13 +103,24 @@ export function PhotoLightbox({ photo, photos, onClose, onNavigate }: PhotoLight
         </Button>
       )}
 
-      {/* Image */}
+      {/* Foto of video */}
       <div className="max-w-full max-h-full p-4">
-        <img
-          src={photo.url || "/placeholder.svg"}
-          alt={`Foto van ${photo.uploaded_by}`}
-          className="max-w-full max-h-[80vh] object-contain rounded-lg"
-        />
+        {isVideoItem(photo) ? (
+          <video
+            key={photo.id}
+            src={photo.url}
+            className="max-w-full max-h-[80vh] rounded-lg bg-black"
+            controls
+            autoPlay
+            playsInline
+          />
+        ) : (
+          <img
+            src={photo.url || "/placeholder.svg"}
+            alt={`Foto van ${photo.uploaded_by}`}
+            className="max-w-full max-h-[80vh] object-contain rounded-lg"
+          />
+        )}
       </div>
 
       {/* Info bar */}

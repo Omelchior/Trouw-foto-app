@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { Camera, Upload, X, Loader2, Check, Heart, Target } from "lucide-react"
+import { Camera, Upload, X, Loader2, Check, Heart, Target, Film, Video } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -16,7 +16,15 @@ import {
   type Challenge,
   type UploadCounts,
 } from "@/lib/guest"
-import { uploadFoto, MAX_FILE_SIZE } from "@/lib/foto-upload"
+import {
+  uploadFoto,
+  isVideo,
+  maxGrootte,
+  MAX_FILE_SIZE,
+  MAX_VIDEO_SIZE,
+} from "@/lib/foto-upload"
+
+const mb = (bytes: number) => Math.round(bytes / 1024 / 1024)
 
 interface PhotoUploadProps {
   onUploadComplete?: () => void
@@ -27,9 +35,28 @@ interface PhotoUploadProps {
   standaardOpdracht?: number | null
   /** Snelle modus (galerij): direct uploaden, zonder fotoboek-stap. */
   directUploaden?: boolean
+  /** Video's mogen mee (alleen de galerij; opdrachten blijven foto's). */
+  videosToegestaan?: boolean
 }
 
 type Step = "choose" | "fotoboek" | "uploading" | "done"
+
+/**
+ * Preview-tegel voor een gekozen bestand. Video's krijgen een <video> met een
+ * filmicoontje, zodat je meteen ziet dat het geen foto is. Hoort in een
+ * element met `relative`.
+ */
+function Preview({ url, video, className }: { url: string; video: boolean; className: string }) {
+  if (!video) return <img src={url} alt="" className={className} />
+  return (
+    <>
+      <video src={url} className={className} muted playsInline preload="metadata" />
+      <span className="absolute bottom-1 left-1 w-6 h-6 rounded-full bg-foreground/60 text-white flex items-center justify-center">
+        <Film className="w-3.5 h-3.5" />
+      </span>
+    </>
+  )
+}
 
 export function PhotoUpload({
   onUploadComplete,
@@ -37,6 +64,7 @@ export function PhotoUpload({
   userId,
   standaardOpdracht,
   directUploaden = false,
+  videosToegestaan = false,
 }: PhotoUploadProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -72,17 +100,28 @@ export function PhotoUpload({
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const validFiles: File[] = []
     const oversized: string[] = []
+    let geweigerdeVideos = 0
 
     acceptedFiles.forEach((f) => {
-      if (f.size > MAX_FILE_SIZE) oversized.push(f.name)
+      if (isVideo(f) && !videosToegestaan) geweigerdeVideos++
+      else if (f.size > maxGrootte(f)) oversized.push(f.name)
       else validFiles.push(f)
     })
 
+    if (geweigerdeVideos > 0) {
+      toast.error("Video's kun je alleen in de galerij uploaden, niet bij een opdracht")
+    }
     if (oversized.length > 0) {
-      toast.error(`${oversized.length} bestand(en) te groot (max 10MB per foto)`)
+      toast.error(
+        videosToegestaan
+          ? `${oversized.length} bestand(en) te groot (max ${mb(MAX_FILE_SIZE)}MB per foto, ${mb(MAX_VIDEO_SIZE)}MB per video)`
+          : `${oversized.length} bestand(en) te groot (max ${mb(MAX_FILE_SIZE)}MB per foto)`
+      )
     }
     if (validFiles.length === 0) return
 
+    // Previews via object-URL's: dat is synchroon (previews blijven dus netjes
+    // op dezelfde index als de bestanden) en houdt grote video's uit het geheugen.
     if (enkeleFoto) {
       // Nieuwe keuze vervangt de vorige; er past er maar één bij een opdracht.
       if (validFiles.length > 1) {
@@ -91,26 +130,24 @@ export function PhotoUpload({
       const file = validFiles[0]
       setFiles([file])
       setFotoboekSelection(new Set())
-      const reader = new FileReader()
-      reader.onload = () => setPreviews([reader.result as string])
-      reader.readAsDataURL(file)
+      setPreviews(prev => {
+        prev.forEach(url => URL.revokeObjectURL(url))
+        return [URL.createObjectURL(file)]
+      })
       return
     }
 
     setFiles(prev => [...prev, ...validFiles])
-    validFiles.forEach((file) => {
-      const reader = new FileReader()
-      reader.onload = () => setPreviews(prev => [...prev, reader.result as string])
-      reader.readAsDataURL(file)
-    })
-  }, [enkeleFoto])
+    setPreviews(prev => [...prev, ...validFiles.map(f => URL.createObjectURL(f))])
+  }, [enkeleFoto, videosToegestaan])
 
   // Foto's kiezen via een gewone file-picker (de app wordt vooral op
   // telefoons gebruikt, dus geen sleepvlak).
   const kiesFotos = useCallback((viaCamera: boolean) => {
     const input = document.createElement("input")
     input.type = "file"
-    input.accept = "image/*"
+    // Bij de camera bewust alleen foto's; video's komen uit de eigen galerij.
+    input.accept = videosToegestaan && !viaCamera ? "image/*,video/*" : "image/*"
     input.multiple = !enkeleFoto
     if (viaCamera) input.capture = "environment"
     input.onchange = (e) => {
@@ -118,11 +155,28 @@ export function PhotoUpload({
       if (f) onDrop(Array.from(f))
     }
     input.click()
-  }, [onDrop, enkeleFoto])
+  }, [onDrop, enkeleFoto, videosToegestaan])
+
+  /** Een video opnemen met de camera (aparte knop, alleen in de galerij). */
+  const filmVideo = useCallback(() => {
+    const input = document.createElement("input")
+    input.type = "file"
+    input.accept = "video/*"
+    input.capture = "environment"
+    input.onchange = (e) => {
+      const f = (e.target as HTMLInputElement).files
+      if (f) onDrop(Array.from(f))
+    }
+    input.click()
+  }, [onDrop])
 
   const removeFile = (index: number) => {
     setFiles(prev => prev.filter((_, i) => i !== index))
-    setPreviews(prev => prev.filter((_, i) => i !== index))
+    setPreviews(prev => {
+      const weg = prev[index]
+      if (weg) URL.revokeObjectURL(weg)
+      return prev.filter((_, i) => i !== index)
+    })
     setFotoboekSelection(prev => {
       const next = new Set(prev)
       next.delete(index)
@@ -190,11 +244,15 @@ export function PhotoUpload({
       if (challengeId === standaardOpdracht) setStandaardAfgerond(true)
     }
 
+    // Met video's erbij is "foto's" misleidend; dan spreken we van bestanden.
+    const woord = (n: number) =>
+      files.some(isVideo) ? `bestand${n > 1 ? "en" : ""}` : `foto${n > 1 ? "'s" : ""}`
+
     if (success > 0) {
-      toast.success(`${success} foto${success > 1 ? "'s" : ""} geüpload! 🎉`)
+      toast.success(`${success} ${woord(success)} geüpload! 🎉`)
     }
     if (fail > 0) {
-      toast.error(`${fail} foto${fail > 1 ? "'s" : ""} mislukt`)
+      toast.error(`${fail} ${woord(fail)} mislukt`)
     }
 
     const newCounts = await getUploadCounts(userId)
@@ -206,7 +264,10 @@ export function PhotoUpload({
 
   const reset = () => {
     setFiles([])
-    setPreviews([])
+    setPreviews(prev => {
+      prev.forEach(url => URL.revokeObjectURL(url))
+      return []
+    })
     setFotoboekSelection(new Set())
     setUploadProgress([])
     setVoltooideOpdracht(null)
@@ -330,7 +391,11 @@ export function PhotoUpload({
                   selected && "ring-4 ring-primary"
                 )}
               >
-                <img src={preview} alt="" className="w-full h-full object-cover" />
+                <Preview
+                  url={preview}
+                  video={!!files[index] && isVideo(files[index])}
+                  className="w-full h-full object-cover"
+                />
                 <div className={cn(
                   "absolute inset-0 flex items-center justify-center transition-colors",
                   selected ? "bg-primary/30" : "bg-transparent hover:bg-black/10"
@@ -389,7 +454,11 @@ export function PhotoUpload({
               <Camera className="w-7 h-7 text-muted-foreground" />
             </div>
             <p className="font-medium">
-              {challenge ? "Maak of kies één foto voor deze opdracht" : "Deel je foto's van vandaag"}
+              {challenge
+                ? "Maak of kies één foto voor deze opdracht"
+                : videosToegestaan
+                  ? "Deel je foto's en video's van vandaag"
+                  : "Deel je foto's van vandaag"}
             </p>
             <div className="space-y-3">
               <Button
@@ -399,24 +468,40 @@ export function PhotoUpload({
                 <Camera className="w-5 h-5" />
                 Maak een foto
               </Button>
+              {videosToegestaan && (
+                <Button
+                  onClick={filmVideo}
+                  variant="outline"
+                  className="w-full h-12 text-base gap-2"
+                >
+                  <Video className="w-5 h-5" />
+                  Film een video
+                </Button>
+              )}
               <Button
                 onClick={() => kiesFotos(false)}
                 variant="outline"
                 className="w-full h-12 text-base gap-2"
               >
                 <Upload className="w-5 h-5" />
-                Kies uit je galerij
+                {videosToegestaan ? "Kies uit je galerij (foto of video)" : "Kies uit je galerij"}
               </Button>
             </div>
+            {videosToegestaan && (
+              <p className="text-xs text-muted-foreground">
+                Foto&apos;s max. {mb(MAX_FILE_SIZE)}MB, video&apos;s max. {mb(MAX_VIDEO_SIZE)}MB —
+                houd video&apos;s dus kort.
+              </p>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
               {previews.map((preview, index) => (
                 <div key={index} className="relative aspect-square group">
-                  <img
-                    src={preview}
-                    alt={`Preview ${index + 1}`}
+                  <Preview
+                    url={preview}
+                    video={!!files[index] && isVideo(files[index])}
                     className="w-full h-full object-cover rounded-lg"
                   />
                   <button
@@ -437,7 +522,14 @@ export function PhotoUpload({
               )}
             </div>
             <p className="text-sm text-muted-foreground">
-              {files.length} foto{files.length === 1 ? "" : "'s"} geselecteerd
+              {(() => {
+                const videos = files.filter(isVideo).length
+                const fotos = files.length - videos
+                const delen = []
+                if (fotos > 0) delen.push(`${fotos} foto${fotos === 1 ? "" : "'s"}`)
+                if (videos > 0) delen.push(`${videos} video${videos === 1 ? "" : "'s"}`)
+                return `${delen.join(" en ")} geselecteerd`
+              })()}
             </p>
             {enkeleFoto && (
               <Button

@@ -25,12 +25,14 @@ interface PhotoLightboxProps {
   photos: Photo[]
   onClose: () => void
   onNavigate: (photo: Photo) => void
+  /** Toon "Geselecteerd" (voor de diavoorstelling); alleen in het beheer. */
+  toonSelectie?: boolean
 }
 
 /** Minimale veegafstand (px) om naar de vorige/volgende foto te gaan. */
 const SWIPE_PX = 50
 
-export function PhotoLightbox({ photo, photos, onClose, onNavigate }: PhotoLightboxProps) {
+export function PhotoLightbox({ photo, photos, onClose, onNavigate, toonSelectie = false }: PhotoLightboxProps) {
   const currentIndex = photo ? photos.findIndex(p => p.id === photo.id) : -1
   const [downloading, setDownloading] = useState(false)
   const opdrachten = useOpdrachten()
@@ -184,7 +186,7 @@ export function PhotoLightbox({ photo, photos, onClose, onNavigate }: PhotoLight
                 </span>
               </p>
             )}
-            {photo.is_selected && (
+            {toonSelectie && photo.is_selected && (
               <span className="inline-flex items-center gap-1 text-sm text-accent">
                 <Heart className="w-3 h-3 fill-current" />
                 Geselecteerd

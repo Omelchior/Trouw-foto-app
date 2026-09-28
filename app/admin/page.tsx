@@ -408,6 +408,7 @@ export default function AdminPage() {
       <PhotoLightbox
         photo={lightboxPhoto}
         photos={photos}
+        toonSelectie
         onClose={() => setLightboxPhoto(null)}
         onNavigate={setLightboxPhoto}
       />

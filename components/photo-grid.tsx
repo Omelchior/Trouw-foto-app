@@ -140,7 +140,7 @@ export function PhotoGrid({
           )}
 
           {/* Opdracht-badge */}
-          {toonOpdrachtBadge && photo.challenge_id != null && !photo.is_selected && !selectionMode && (
+          {toonOpdrachtBadge && photo.challenge_id != null && !(isAdmin && photo.is_selected) && !selectionMode && (
             <div className="absolute top-2 left-2 text-[10px] sm:text-xs font-bold text-white bg-primary/90 rounded px-1.5 py-0.5">
               #{photo.challenge_id}
             </div>
@@ -187,8 +187,8 @@ export function PhotoGrid({
             </div>
           )}
 
-          {/* Selected badge */}
-          {photo.is_selected && !selectionMode && (
+          {/* Geselecteerd (voor de diavoorstelling): alleen voor het beheer */}
+          {isAdmin && photo.is_selected && !selectionMode && (
             <div className="absolute top-2 left-2 px-2 py-1 bg-accent text-accent-foreground text-xs font-medium rounded-full flex items-center gap-1">
               <Heart className="w-3 h-3 fill-current" />
               Geselecteerd

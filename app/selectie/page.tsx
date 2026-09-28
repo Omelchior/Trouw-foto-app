@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect } from "react"
 import Link from "next/link"
-import { Loader2, Camera, ChevronUp, Heart, Target, CheckSquare, Square, Download, X, MonitorPlay, Plus } from "lucide-react"
+import { Loader2, Camera, ChevronUp, Heart, Target, CheckSquare, Square, Download, X, MonitorPlay, Plus, ArrowUpDown } from "lucide-react"
 import { PhotoGrid } from "@/components/photo-grid"
 import { PhotoLightbox } from "@/components/photo-lightbox"
 import { PersonenFilter } from "@/components/personen-filter"
@@ -49,6 +49,29 @@ interface Photo {
   thumb_url?: string
 }
 
+type Volgorde = "gemengd" | "nieuw" | "oud"
+
+/**
+ * Om de beurt een foto van iedere gast, zodat niet de laatste grote upload van
+ * één persoon de hele bovenkant vult. Geen toeval: de volgorde ligt vast (en
+ * blijft dus gelijk bij herladen en in de lightbox). Per gast blijft de eigen
+ * volgorde (nieuwste eerst) bewaard; wie het laatst iets deelde, begint.
+ */
+function mengPerGast<T extends { uploaded_by: string }>(fotos: T[]): T[] {
+  const perGast = new Map<string, T[]>()
+  for (const f of fotos) {
+    const lijst = perGast.get(f.uploaded_by)
+    if (lijst) lijst.push(f)
+    else perGast.set(f.uploaded_by, [f])
+  }
+  const rijen = [...perGast.values()]
+  const uit: T[] = []
+  for (let i = 0; uit.length < fotos.length; i++) {
+    for (const rij of rijen) if (i < rij.length) uit.push(rij[i])
+  }
+  return uit
+}
+
 export default function SelectiePage() {
   const [photos, setPhotos] = useState<Photo[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -58,6 +81,7 @@ export default function SelectiePage() {
   const [uploadOpen, setUploadOpen] = useState(false)
   // Filter "van wie" in het tabblad Alle (leeg = iedereen).
   const [personen, setPersonen] = useState<Set<string>>(new Set())
+  const [volgorde, setVolgorde] = useState<Volgorde>("gemengd")
   const opdrachten = useOpdrachten()
 
   // Selecteren + downloaden.
@@ -120,7 +144,12 @@ export default function SelectiePage() {
   // Gastfoto's en de vrijgegeven foto's van de fotograaf apart. Ook beheer ziet
   // hier alleen wat daggasten zien; de rest staat in het beheer.
   const gastFotos = photos.filter(p => !isFotograafItem(p))
-  const fotograafFotos = photos.filter(p => isVrijgegevenFotograaf(p))
+  // Fotograaf-foto's in cameravolgorde (bestandsnaam), zoals hij ze maakte.
+  const fotograafFotos = photos
+    .filter(p => isVrijgegevenFotograaf(p))
+    .sort((a, b) =>
+      (a.origineel_naam ?? "").localeCompare(b.origineel_naam ?? "", undefined, { numeric: true }),
+    )
   const toonFotograaf = fotograafFotos.length > 0
 
   const opdrachtPhotos = gastFotos.filter(p => p.challenge_id != null)
@@ -145,6 +174,10 @@ export default function SelectiePage() {
   const mijnOpdrachtFotos = mijnFotos.filter(p => p.challenge_id != null)
   const mijnAlgemeneFotos = mijnFotos.filter(p => p.challenge_id == null)
 
+  // Tabblad Alle: gemengd per gast (standaard), of op uploadtijd.
+  const sorteer = (fotos: Photo[]) =>
+    volgorde === "gemengd" ? mengPerGast(fotos) : volgorde === "oud" ? [...fotos].reverse() : fotos
+
   // Vlakke lijst per tab, zodat de lightbox in dezelfde volgorde bladert.
   const displayPhotos =
     activeTab === "opdrachten"
@@ -153,9 +186,7 @@ export default function SelectiePage() {
         ? [...mijnOpdrachtFotos, ...mijnAlgemeneFotos]
         : activeTab === "fotograaf"
           ? fotograafFotos
-          : personen.size > 0
-            ? gastFotos.filter(p => personen.has(p.uploaded_by))
-            : gastFotos
+          : sorteer(personen.size > 0 ? gastFotos.filter(p => personen.has(p.uploaded_by)) : gastFotos)
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -345,9 +376,30 @@ export default function SelectiePage() {
                     : "Tik op een foto om hem groot te bekijken"}
                 </p>
               )}
-              <Button variant="outline" size="sm" onClick={() => setSelectionMode(true)} className="gap-2 shrink-0">
+              {activeTab === "alle" && (
+                <label className="relative shrink-0">
+                  <span className="sr-only">Volgorde</span>
+                  <select
+                    value={volgorde}
+                    onChange={(e) => setVolgorde(e.target.value as Volgorde)}
+                    className="h-9 appearance-none rounded-md border border-border bg-card pl-2.5 pr-7 text-sm text-foreground"
+                  >
+                    <option value="gemengd">Gemengd</option>
+                    <option value="nieuw">Nieuwste</option>
+                    <option value="oud">Oudste</option>
+                  </select>
+                  <ArrowUpDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                </label>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectionMode(true)}
+                className="gap-2 shrink-0"
+                aria-label="Downloaden"
+              >
                 <Download className="w-4 h-4" />
-                Downloaden
+                <span className={activeTab === "alle" ? "hidden sm:inline" : ""}>Downloaden</span>
               </Button>
             </div>
           )}

@@ -141,19 +141,50 @@ export async function verplaatsGastOpdracht(
   }
 }
 
+/** Uitkomst van een herverdeling, voor de terugkoppeling in het beheer. */
+export interface Herverdeling {
+  /** Aantal gasten dat een (nieuwe) opdracht kreeg. */
+  gasten: number
+  /** Hoe vaak de meest uitgedeelde opdracht is uitgedeeld. */
+  maxPerOpdracht: number
+  /** Hoe vaak de minst uitgedeelde opdracht is uitgedeeld. */
+  minPerOpdracht: number
+  /** Gasten die tóch een opdracht kregen die al aan hun tafel lag. */
+  dubbelAanTafel: number
+}
+
+/** Fisher-Yates op een kopie; gebruikt om gelijke keuzes eerlijk te loten. */
+function shuffle<T>(items: T[]): T[] {
+  const a = items.slice()
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
 /**
- * Beheer koppelt iedereen aan een nieuwe willekeurige opdracht: per gast een
- * random opdracht die hij nog niet heeft gedaan, en de zelfgekozen vervolg-
- * opdracht van iedereen wordt gewist. Geeft het aantal bijgewerkte gasten terug.
+ * Beheer koppelt iedereen aan een nieuwe opdracht, maar dan eerlijk verdeeld:
+ *  1. elke opdracht wordt (bijna) even vaak uitgedeeld — nooit vaker dan
+ *     ⌈gasten / opdrachten⌉ keer, in plaats van de dobbelsteen-uitschieters van
+ *     zuiver willekeurig loten;
+ *  2. aan dezelfde tafel krijgt niemand dezelfde opdracht, zodat tafelgenoten
+ *     elkaar niet voor de voeten lopen;
+ *  3. een gast krijgt geen opdracht die hij al gedaan heeft.
+ *
+ * Bij tegenstrijdige wensen wint de bovenste regel: liever een duplicaat aan
+ * tafel dan een al gedane opdracht. Zelfgekozen vervolg-opdrachten worden
+ * gewist, zodat de nieuwe toewijzing de actieve opdracht is.
  */
-export async function herverdeelOpdrachtenWillekeurig(): Promise<number> {
+export async function herverdeelOpdrachtenEerlijk(): Promise<Herverdeling> {
   const supabase = createClient()
   const [gRes, pRes, fRes] = await Promise.all([
-    supabase.from('guests').select('id, claimed_user_id'),
+    supabase.from('guests').select('id, claimed_user_id, tafel'),
     supabase.from('user_profiles').select('user_id, completed_challenges'),
     supabase.from('photos').select('user_id, challenge_id').not('challenge_id', 'is', null),
   ])
-  const guests = (gRes.data as { id: string; claimed_user_id: string | null }[]) ?? []
+  if (gRes.error) throw gRes.error
+  const guests = (gRes.data as { id: string; claimed_user_id: string | null; tafel: number | null }[]) ?? []
   const profiles = (pRes.data as { user_id: string; completed_challenges: number[] | null }[]) ?? []
   const photos = (fRes.data as { user_id: string | null; challenge_id: number | null }[]) ?? []
 
@@ -166,24 +197,60 @@ export async function herverdeelOpdrachtenWillekeurig(): Promise<number> {
     s.add(f.challenge_id)
     gedaanPer.set(f.user_id, s)
   }
+  const gedaanVan = (g: { claimed_user_id: string | null }) =>
+    (g.claimed_user_id ? gedaanPer.get(g.claimed_user_id) : undefined) ?? new Set<number>()
 
   const alleIds = CHALLENGES.map((c) => c.id)
+  const gebruikt = new Map<number, number>(alleIds.map((id) => [id, 0]))
+  const perTafel = new Map<string, Set<number>>()
+  let dubbelAanTafel = 0
+
+  // Gasten met de minste keuzevrijheid (het meest gedaan) eerst, en binnen een
+  // gelijk aantal in willekeurige volgorde. Zo houden zij niet als laatste
+  // alleen nog al gedane opdrachten over.
+  const volgorde = shuffle(guests).sort((a, b) => gedaanVan(b).size - gedaanVan(a).size)
+
+  const toewijzing = volgorde.map((g) => {
+    const gedaan = gedaanVan(g)
+    // Gasten zonder tafel hinderen niemand: die krijgen hun eigen "tafel".
+    const tafelSleutel = g.tafel == null ? `gast-${g.id}` : `tafel-${g.tafel}`
+    const bezetAanTafel = perTafel.get(tafelSleutel) ?? new Set<number>()
+
+    const open = alleIds.filter((id) => !gedaan.has(id))
+    const vrijAanTafel = open.filter((id) => !bezetAanTafel.has(id))
+    if (vrijAanTafel.length === 0 && g.tafel != null) dubbelAanTafel += 1
+    const kandidaten = vrijAanTafel.length ? vrijAanTafel : open.length ? open : alleIds
+
+    // De minst uitgedeelde opdracht wint; bij gelijke stand beslist het lot.
+    const gemengd = shuffle(kandidaten)
+    let keuze = gemengd[0]
+    for (const id of gemengd) {
+      if ((gebruikt.get(id) ?? 0) < (gebruikt.get(keuze) ?? 0)) keuze = id
+    }
+
+    gebruikt.set(keuze, (gebruikt.get(keuze) ?? 0) + 1)
+    bezetAanTafel.add(keuze)
+    perTafel.set(tafelSleutel, bezetAanTafel)
+    return { id: g.id, opdracht: keuze }
+  })
 
   await Promise.all(
-    guests.map((g) => {
-      const gedaan = g.claimed_user_id ? gedaanPer.get(g.claimed_user_id) ?? new Set<number>() : new Set<number>()
-      const open = alleIds.filter((id) => !gedaan.has(id))
-      const pool = open.length ? open : alleIds
-      const random = pool[Math.floor(Math.random() * pool.length)]
-      return supabase.from('guests').update({ eerste_opdracht: random }).eq('id', g.id)
-    }),
+    toewijzing.map((t) =>
+      supabase.from('guests').update({ eerste_opdracht: t.opdracht }).eq('id', t.id),
+    ),
   )
 
   // Zelfgekozen vervolg-opdracht van iedereen wissen, zodat de nieuwe
   // toegewezen opdracht de actieve is. (user_id is PK, dus dit raakt alle rijen.)
   await supabase.from('user_profiles').update({ huidige_opdracht: null }).not('user_id', 'is', null)
 
-  return guests.length
+  const aantallen = [...gebruikt.values()]
+  return {
+    gasten: toewijzing.length,
+    maxPerOpdracht: aantallen.length ? Math.max(...aantallen) : 0,
+    minPerOpdracht: aantallen.length ? Math.min(...aantallen) : 0,
+    dubbelAanTafel,
+  }
 }
 
 /** Beheer/ceremoniemeester past de tekst van één opdracht aan. */

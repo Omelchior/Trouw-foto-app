@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Loader2, Camera, UserRound, Pencil, Check, X, Shuffle } from "lucide-react"
+import Link from "next/link"
+import { Loader2, Camera, UserRound, Pencil, Check, X, Scale, Printer } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -19,7 +20,7 @@ import {
   berekenActieveOpdracht,
   zetOpdrachtTekst,
   verplaatsGastOpdracht,
-  herverdeelOpdrachtenWillekeurig,
+  herverdeelOpdrachtenEerlijk,
 } from "@/lib/guest"
 import { useOpdrachten } from "@/components/opdrachten-provider"
 import { toast } from "sonner"
@@ -70,7 +71,7 @@ export function OpdrachtenOverzicht() {
   const [verplaatsId, setVerplaatsId] = useState<string | null>(null)
   const [verplaatsBezig, setVerplaatsBezig] = useState(false)
 
-  // Iedereen opnieuw willekeurig verdelen.
+  // Iedereen opnieuw eerlijk verdelen.
   const [herverdeelOpen, setHerverdeelOpen] = useState(false)
   const [herverdeelBezig, setHerverdeelBezig] = useState(false)
 
@@ -151,12 +152,15 @@ export function OpdrachtenOverzicht() {
     }
   }
 
-  // ---- Iedereen willekeurig herverdelen ----
+  // ---- Iedereen eerlijk herverdelen ----
   const herverdeel = async () => {
     setHerverdeelBezig(true)
     try {
-      const aantal = await herverdeelOpdrachtenWillekeurig()
-      toast.success(`${aantal} gasten aan een nieuwe willekeurige opdracht gekoppeld`)
+      const r = await herverdeelOpdrachtenEerlijk()
+      toast.success(
+        `${r.gasten} gasten verdeeld · elke opdracht ${r.minPerOpdracht}-${r.maxPerOpdracht}×` +
+          (r.dubbelAanTafel > 0 ? ` · ${r.dubbelAanTafel}× dubbel aan een tafel` : ""),
+      )
       setHerverdeelOpen(false)
     } catch (e) {
       console.error("Herverdelen mislukt", e)
@@ -245,10 +249,18 @@ export function OpdrachtenOverzicht() {
             <strong className="text-foreground">{totaalFotos}</strong> opdracht-foto&apos;s in totaal
           </span>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setHerverdeelOpen(true)} className="gap-2">
-          <Shuffle className="w-4 h-4" />
-          Herverdeel willekeurig
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setHerverdeelOpen(true)} className="gap-2">
+            <Scale className="w-4 h-4" />
+            Verdeel eerlijk
+          </Button>
+          <Button variant="outline" size="sm" asChild className="gap-2 bg-transparent">
+            <Link href="/admin/kaartjes">
+              <Printer className="w-4 h-4" />
+              Print kaartjes
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <p className="text-xs text-muted-foreground">
@@ -382,10 +394,13 @@ export function OpdrachtenOverzicht() {
       <AlertDialog open={herverdeelOpen} onOpenChange={setHerverdeelOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Iedereen opnieuw verdelen?</AlertDialogTitle>
+            <AlertDialogTitle>Iedereen eerlijk verdelen?</AlertDialogTitle>
             <AlertDialogDescription>
-              Elke gast krijgt een nieuwe willekeurige opdracht die hij nog niet heeft gedaan. Zelf
-              gekozen vervolg-opdrachten worden gewist. Reeds gemaakte foto&apos;s blijven staan.
+              Elke gast krijgt een opdracht die hij nog niet heeft gedaan. De opdrachten worden
+              gelijkmatig verdeeld (elke opdracht ongeveer even vaak) en aan dezelfde tafel krijgt
+              niemand dezelfde opdracht. Handmatige aanpassingen aan de verdeling gaan hiermee
+              verloren en zelf gekozen vervolg-opdrachten worden gewist. Reeds gemaakte
+              foto&apos;s blijven staan.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -398,8 +413,8 @@ export function OpdrachtenOverzicht() {
               disabled={herverdeelBezig}
               className="gap-2"
             >
-              {herverdeelBezig ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shuffle className="w-4 h-4" />}
-              Herverdeel
+              {herverdeelBezig ? <Loader2 className="w-4 h-4 animate-spin" /> : <Scale className="w-4 h-4" />}
+              Verdeel eerlijk
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

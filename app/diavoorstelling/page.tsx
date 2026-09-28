@@ -21,7 +21,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
 import { useOpdrachten } from "@/components/opdrachten-provider"
-import { isFotograafItem, isVideoItem, isVrijgegevenFotograaf } from "@/lib/media"
+import { alleRijen, isFotograafItem, isVideoItem, isVrijgegevenFotograaf } from "@/lib/media"
 import { cn } from "@/lib/utils"
 
 interface Photo {
@@ -187,10 +187,14 @@ export default function DiavoorstellingPage() {
     const supabase = createClient()
 
     const load = async () => {
-      const { data, error } = await supabase
-        .from("photos")
-        .select("*")
-        .order("uploaded_at", { ascending: true })
+      const { data, error } = await alleRijen((van, tot) =>
+        supabase
+          .from("photos")
+          .select("*")
+          .order("uploaded_at", { ascending: true })
+          .order("id")
+          .range(van, tot),
+      )
 
       if (error) {
         console.error("Error fetching photos:", error)

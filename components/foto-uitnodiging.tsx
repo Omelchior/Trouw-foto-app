@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Aperture, Camera, ChevronRight, Images, MonitorPlay, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
-import { isFotograafItem, isVideoItem, isVrijgegevenFotograaf, metUrls } from "@/lib/media"
+import { alleRijen, isFotograafItem, isVideoItem, isVrijgegevenFotograaf, metUrls } from "@/lib/media"
 
 interface Foto {
   id: string
@@ -54,10 +54,14 @@ export function FotoUitnodiging({ userId }: { userId: string }) {
     const supabase = createClient()
     let actief = true
     const laden = async () => {
-      const { data, error } = await supabase
-        .from("photos")
-        .select("*")
-        .order("uploaded_at", { ascending: false })
+      const { data, error } = await alleRijen((van, tot) =>
+        supabase
+          .from("photos")
+          .select("*")
+          .order("uploaded_at", { ascending: false })
+          .order("id")
+          .range(van, tot),
+      )
       if (!actief) return
       if (error) {
         console.error("Foto's ophalen mislukt", error)

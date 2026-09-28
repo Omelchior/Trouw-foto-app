@@ -33,7 +33,7 @@ import { FotograafBeheer } from "@/components/fotograaf-beheer"
 import { createClient } from "@/lib/supabase/client"
 import { downloadFotos } from "@/lib/foto-download"
 import { maakThumbnail } from "@/lib/foto-upload"
-import { isVideoItem, metUrls } from "@/lib/media"
+import { alleRijen, isVideoItem, metUrls } from "@/lib/media"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -86,10 +86,14 @@ export default function AdminPage() {
 
   const fetchPhotos = async () => {
     const supabase = createClient()
-    const { data, error } = await supabase
-      .from("photos")
-      .select("*")
-      .order("uploaded_at", { ascending: false })
+    const { data, error } = await alleRijen((van, tot) =>
+      supabase
+        .from("photos")
+        .select("*")
+        .order("uploaded_at", { ascending: false })
+        .order("id")
+        .range(van, tot),
+    )
 
     if (error) {
       console.error("Error fetching photos:", error)
@@ -163,9 +167,9 @@ export default function AdminPage() {
 
   const handleToggleSelection = async (id: string, selected: boolean) => {
     const supabase = createClient()
-    const { error } = await supabase.from("photos").update({ is_selected: selected }).eq("id", id)
+    const { error } = await supabase.rpc("beheer_zet_geselecteerd", { p_ids: [id], p_waarde: selected })
     if (error) {
-      toast.error("Selectie aanpassen mislukt")
+      toast.error(`Selectie aanpassen mislukt: ${error.message}`)
     } else {
       fetchPhotos()
     }
@@ -174,9 +178,12 @@ export default function AdminPage() {
   const handleBulkToggleSelection = async (select: boolean) => {
     if (selectedIds.size === 0) return
     const supabase = createClient()
-    const { error } = await supabase.from("photos").update({ is_selected: select }).in("id", Array.from(selectedIds))
+    const { error } = await supabase.rpc("beheer_zet_geselecteerd", {
+      p_ids: Array.from(selectedIds),
+      p_waarde: select,
+    })
     if (error) {
-      toast.error("Selectie aanpassen mislukt")
+      toast.error(`Selectie aanpassen mislukt: ${error.message}`)
     } else {
       toast.success(`${selectedIds.size} foto's ${select ? "geselecteerd" : "gedeselecteerd"}`)
       setSelectedIds(new Set())
@@ -196,6 +203,7 @@ export default function AdminPage() {
     setThumbVoortgang({ klaar: 0, totaal: lijst.length })
     let klaar = 0
     let mislukt = 0
+    let eersteFout: string | null = null
     let volgende = 0
     const werker = async () => {
       while (volgende < lijst.length) {
@@ -205,6 +213,7 @@ export default function AdminPage() {
         } catch (e) {
           console.error("Thumbnail mislukt", foto.storage_path, e)
           mislukt++
+          eersteFout ??= (e as { message?: string })?.message ?? String(e)
         }
         klaar++
         setThumbVoortgang({ klaar, totaal: lijst.length })
@@ -212,7 +221,10 @@ export default function AdminPage() {
     }
     await Promise.all([werker(), werker(), werker()])
     setThumbVoortgang(null)
-    if (mislukt > 0) toast.warning(`${lijst.length - mislukt} thumbnails gemaakt, ${mislukt} mislukt`)
+    if (mislukt > 0)
+      toast.error(`${lijst.length - mislukt} thumbnails gemaakt, ${mislukt} mislukt: ${eersteFout}`, {
+        duration: 15000,
+      })
     else toast.success(`${lijst.length} thumbnails gemaakt — de galerij laadt nu veel sneller`)
     fetchPhotos()
   }

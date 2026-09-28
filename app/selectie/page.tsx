@@ -14,7 +14,7 @@ import { getGuestSession, type GuestSession } from "@/lib/guest"
 import { useOpdrachten } from "@/components/opdrachten-provider"
 import { cn } from "@/lib/utils"
 import { downloadFotos } from "@/lib/foto-download"
-import { isFotograafItem, isVrijgegevenFotograaf, metUrls } from "@/lib/media"
+import { alleRijen, isFotograafItem, isVrijgegevenFotograaf, metUrls } from "@/lib/media"
 import { OPDRACHTEN_OPEN } from "@/lib/bruiloft"
 import { toast } from "sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -95,10 +95,14 @@ export default function SelectiePage() {
 
   const fetchPhotos = async () => {
     const supabase = createClient()
-    const { data, error } = await supabase
-      .from("photos")
-      .select("*")
-      .order("uploaded_at", { ascending: false })
+    const { data, error } = await alleRijen((van, tot) =>
+      supabase
+        .from("photos")
+        .select("*")
+        .order("uploaded_at", { ascending: false })
+        .order("id")
+        .range(van, tot),
+    )
 
     if (error) {
       console.error("Error fetching photos:", error)

@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { createClient } from "@/lib/supabase/client"
 import { uploadFotograafFoto } from "@/lib/foto-upload"
-import { metUrls } from "@/lib/media"
+import { alleRijen, metUrls } from "@/lib/media"
 import { cn } from "@/lib/utils"
 
 interface FotograafFoto {
@@ -89,11 +89,15 @@ export function FotograafBeheer() {
 
   const ophalen = useCallback(async () => {
     const supabase = createClient()
-    const { data, error } = await supabase
-      .from("photos")
-      .select("*")
-      .eq("bron", "fotograaf")
-      .order("origineel_naam", { ascending: true })
+    const { data, error } = await alleRijen((van, tot) =>
+      supabase
+        .from("photos")
+        .select("*")
+        .eq("bron", "fotograaf")
+        .order("origineel_naam", { ascending: true })
+        .order("id")
+        .range(van, tot),
+    )
     if (error) {
       console.error("Fotograaf-foto's ophalen mislukt", error)
       toast.error("Foto's ophalen mislukt — is migratie 019 al uitgevoerd?")
@@ -185,14 +189,22 @@ export function FotograafBeheer() {
     // Direct tonen, bij een fout terugdraaien.
     const vorige = fotos
     setFotos((prev) => prev.map((f) => (ids.includes(f.id) ? { ...f, ...vlaggen } : f)))
+    // Via een databasefunctie (migratie 021): die controleert de rol en geeft
+    // een duidelijke fout, i.p.v. een update die stil 0 rijen raakt.
     for (const brok of brokken(ids)) {
-      const { error } = await supabase.from("photos").update(vlaggen).in("id", brok)
-      if (error) {
-        console.error("Zichtbaarheid aanpassen mislukt", error)
+      const { data, error } = await supabase.rpc("beheer_zet_foto_zichtbaar", {
+        p_ids: brok,
+        p_dag: vlaggen.zichtbaar_dag ?? null,
+        p_avond: vlaggen.zichtbaar_avond ?? null,
+      })
+      if (error || data === 0) {
+        console.error("Zichtbaarheid aanpassen mislukt", error ?? "0 foto's aangepast")
         toast.error(
-          error.code === "42703"
-            ? "Voer eerst migratie 020 uit om foto's met avondgasten te delen"
-            : "Aanpassen mislukt, probeer het opnieuw",
+          error?.code === "PGRST202"
+            ? "Voer eerst migratie 021 uit in Supabase"
+            : error
+              ? `Aanpassen mislukt: ${error.message}`
+              : "Er is niets aangepast, probeer het opnieuw",
         )
         setFotos(vorige)
         return

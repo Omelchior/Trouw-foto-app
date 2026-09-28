@@ -37,6 +37,26 @@ export function isVrijgegevenFotograaf(item: {
   return isFotograafItem(item) && (!!item.zichtbaar_dag || !!item.zichtbaar_avond)
 }
 
+/** Supabase geeft per verzoek maximaal zoveel rijen terug. */
+const PAGINA = 1000
+
+/**
+ * Haal ALLE rijen op, in pagina's van 1000. Zonder dit kapt Supabase stil af
+ * bij 1000 rijen, en met honderden fotograaf-foto's vielen dan de oudste
+ * gastfoto's weg. De query moet een vaste volgorde hebben (order + id).
+ */
+export async function alleRijen<T, E>(
+  pagina: (van: number, tot: number) => PromiseLike<{ data: T[] | null; error: E | null }>,
+): Promise<{ data: T[]; error: E | null }> {
+  const alles: T[] = []
+  for (let van = 0; ; van += PAGINA) {
+    const { data, error } = await pagina(van, van + PAGINA - 1)
+    if (error) return { data: alles, error }
+    alles.push(...(data ?? []))
+    if (!data || data.length < PAGINA) return { data: alles, error: null }
+  }
+}
+
 export interface OpslagItem {
   storage_path: string
   thumb_pad?: string | null

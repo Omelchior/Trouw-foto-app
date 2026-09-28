@@ -226,9 +226,13 @@ export async function maakThumbnail(foto: { id: string; storage_path: string }):
   const thumb = await compressImage(bestand, THUMB_OPTIES)
   if (thumb === bestand) return null
   const pad = `thumb/${foto.storage_path.replace(/\.[^.]+$/, '')}.jpg`
-  await opslaan(pad, thumb)
-  const upd = await supabase.from('photos').update({ thumb_pad: pad }).eq('id', foto.id).select('id')
-  if (upd.error) throw upd.error
-  if (!upd.data?.length) throw new Error('Geen rechten om de foto bij te werken')
+  const { error: upErr } = await supabase.storage
+    .from('wedding-photos')
+    .upload(pad, thumb, { contentType: 'image/jpeg' })
+  // Staat hij er al (van een eerdere poging), dan gebruiken we die gewoon.
+  if (upErr && !/exists|duplicate/i.test(upErr.message)) throw upErr
+  // Vastleggen via een databasefunctie (migratie 021), die de rol controleert.
+  const { error: rpcErr } = await supabase.rpc('beheer_zet_thumb', { p_id: foto.id, p_pad: pad })
+  if (rpcErr) throw rpcErr
   return pad
 }

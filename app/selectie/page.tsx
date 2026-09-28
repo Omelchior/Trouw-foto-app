@@ -289,7 +289,13 @@ export default function SelectiePage() {
             </p>
           </div>
           <Button asChild variant="outline" size="sm" className="gap-2 shrink-0">
-            <Link href={activeTab === "fotograaf" ? "/diavoorstelling?bron=fotograaf" : "/diavoorstelling"}>
+            <Link
+              href={
+                activeTab === "fotograaf" || activeTab === "opdrachten"
+                  ? `/diavoorstelling?bron=${activeTab}`
+                  : "/diavoorstelling"
+              }
+            >
               <MonitorPlay className="w-4 h-4" />
               Diavoorstelling
             </Link>

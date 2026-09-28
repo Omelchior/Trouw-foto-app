@@ -41,17 +41,19 @@ interface Photo {
 /**
  * Waar de show uit put:
  *  - hoogtepunten: opdracht-foto's + foto's die via het beheer zijn geselecteerd
+ *  - opdrachten:   alleen de foto's van de foto-opdrachten
  *  - alle:         alle foto's die gasten hebben gedeeld
  *  - fotograaf:    de vrijgegeven foto's van de fotograaf (alleen daggasten en
  *                  beheer krijgen die uit de database, zie migratie 019)
  * Video's slaan we altijd over: die passen niet in de fade/ken-burns-loop en
  * zouden zonder geluid als zwart beeld voorbijkomen.
  */
-type Bron = "hoogtepunten" | "alle" | "fotograaf"
+type Bron = "hoogtepunten" | "opdrachten" | "alle" | "fotograaf"
 
 const BRONNEN: { value: Bron; label: string }[] = [
   { value: "hoogtepunten", label: "Hoogtepunten" },
-  { value: "alle", label: "Alle foto's" },
+  { value: "opdrachten", label: "Opdrachten" },
+  { value: "alle", label: "Alles" },
   { value: "fotograaf", label: "Fotograaf" },
 ]
 
@@ -59,6 +61,7 @@ function hoortInShow(p: Omit<Photo, "url">, bron: Bron): boolean {
   if (isVideoItem(p)) return false
   if (isFotograafItem(p)) return bron === "fotograaf" && isVrijgegevenFotograaf(p)
   if (bron === "fotograaf") return false
+  if (bron === "opdrachten") return p.challenge_id != null
   return bron === "alle" || p.challenge_id != null || p.is_selected
 }
 
@@ -458,7 +461,9 @@ export default function DiavoorstellingPage() {
   const leegTekst =
     bron === "hoogtepunten"
       ? "Opdracht-foto's en via het beheer geselecteerde foto's verschijnen hier automatisch."
-      : bron === "alle"
+      : bron === "opdrachten"
+        ? "Foto's van de foto-opdrachten verschijnen hier automatisch."
+        : bron === "alle"
         ? "Foto's die gasten in de galerij delen verschijnen hier automatisch."
         : "Er zijn nog geen foto's van de fotograaf vrijgegeven."
 
@@ -542,7 +547,7 @@ export default function DiavoorstellingPage() {
                 aria-checked={bron === b.value}
                 onClick={() => setBron(b.value)}
                 className={cn(
-                  "px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+                  "px-2.5 sm:px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors",
                   bron === b.value ? "bg-white text-black" : "text-white/80 hover:text-white",
                 )}
               >

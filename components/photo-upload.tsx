@@ -23,6 +23,7 @@ import {
   MAX_FILE_SIZE,
   MAX_VIDEO_SIZE,
 } from "@/lib/foto-upload"
+import { OPDRACHTEN_OPEN } from "@/lib/bruiloft"
 
 const mb = (bytes: number) => Math.round(bytes / 1024 / 1024)
 
@@ -76,9 +77,12 @@ export function PhotoUpload({
 
   const challengeIdParam = searchParams.get("challenge")
   const paramId = challengeIdParam ? parseInt(challengeIdParam, 10) : null
-  const challengeId =
-    paramId ??
-    (standaardOpdracht != null && !standaardAfgerond ? standaardOpdracht : null)
+  // Zijn de opdrachten afgelopen, dan wordt elke upload een gewone foto
+  // (ook via een oude link met ?challenge=).
+  const challengeId = !OPDRACHTEN_OPEN
+    ? null
+    : paramId ??
+      (standaardOpdracht != null && !standaardAfgerond ? standaardOpdracht : null)
   const challenge = challengeId ? getChallenge(challengeId) : null
 
   const [files, setFiles] = useState<File[]>([])

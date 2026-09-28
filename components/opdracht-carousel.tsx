@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Camera, Check, ChevronLeft, ChevronRight, Loader2, PartyPopper, Target, Upload } from "lucide-react"
+import Link from "next/link"
+import { Camera, Check, ChevronLeft, ChevronRight, Images, Loader2, PartyPopper, Target, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 import { PhotoLightbox } from "@/components/photo-lightbox"
@@ -13,6 +14,7 @@ import {
 } from "@/lib/guest"
 import { useOpdrachten } from "@/components/opdrachten-provider"
 import { uploadFoto, isVideo, MAX_FILE_SIZE } from "@/lib/foto-upload"
+import { OPDRACHTEN_OPEN } from "@/lib/bruiloft"
 import { cn } from "@/lib/utils"
 
 export interface OpdrachtFoto {
@@ -172,7 +174,7 @@ export function OpdrachtCarousel({
   // Opdrachten-pagina dezelfde opdracht tonen.
   const autoBezig = useRef(false)
   useEffect(() => {
-    if (!compact || actief != null || allesGedaan || autoBezig.current) return
+    if (!OPDRACHTEN_OPEN || !compact || actief != null || allesGedaan || autoBezig.current) return
     autoBezig.current = true
     nogEenOpdracht().finally(() => {
       autoBezig.current = false
@@ -191,7 +193,36 @@ export function OpdrachtCarousel({
 
   // De actieve opdracht (upload) of de "volgende opdracht"-kaart. Wordt zowel
   // in compacte modus als in de carrousel gebruikt.
-  const focalCard = actieveOpdracht ? (
+  // Na de bruiloft: geen nieuwe opdrachten meer, alleen terugkijken.
+  const geslotenCard = (
+    <div
+      ref={focusRef}
+      className={cn(
+        kaartKlasse,
+        !compact && "min-h-[18rem]",
+        "border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center gap-3 text-center"
+      )}
+    >
+      <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+        <PartyPopper className="w-7 h-7 text-primary" />
+      </div>
+      <p className="font-serif text-lg font-bold">De foto-opdrachten zijn afgelopen</p>
+      <p className="text-sm text-muted-foreground">
+        {completed.length > 0
+          ? `Jij hebt er ${completed.length} gedaan — bedankt! ${compact ? "" : "Swipe naar links om je foto's terug te zien."}`
+          : "Bedankt voor het meedoen!"}{" "}
+        De opdracht-foto&apos;s van iedereen staan in de galerij.
+      </p>
+      <Button asChild variant="outline" className="h-11 gap-2">
+        <Link href="/selectie">
+          <Images className="w-5 h-5" />
+          Naar de galerij
+        </Link>
+      </Button>
+    </div>
+  )
+
+  const focalCard = !OPDRACHTEN_OPEN ? geslotenCard : actieveOpdracht ? (
     <div ref={focusRef} className={cn(kaartKlasse, "border border-border rounded-xl overflow-hidden flex flex-col bg-card")}>
       <div className="bg-primary/10 border-b border-primary/20 p-4">
         <div className="flex items-start gap-3">

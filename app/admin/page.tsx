@@ -12,11 +12,13 @@ import {
   CheckSquare,
   Square,
   QrCode,
+  Printer,
   ClipboardList,
   MonitorPlay,
   BookOpen,
   Armchair,
   Target,
+  Camera,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -27,7 +29,11 @@ import { Navigation } from "@/components/navigation"
 import { TafelIndeling } from "@/components/tafel-indeling"
 import { PhotoGrid } from "@/components/photo-grid"
 import { PhotoLightbox } from "@/components/photo-lightbox"
+import { FotograafBeheer } from "@/components/fotograaf-beheer"
 import { createClient } from "@/lib/supabase/client"
+import { downloadFotos } from "@/lib/foto-download"
+import { maakThumbnail } from "@/lib/foto-upload"
+import { isVideoItem, metUrls } from "@/lib/media"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -47,7 +53,10 @@ interface Photo {
   uploaded_at: string
   is_selected: boolean
   media_type?: string | null
+  bron?: string | null
+  thumb_pad?: string | null
   url?: string
+  thumb_url?: string
 }
 
 export default function AdminPage() {
@@ -85,10 +94,10 @@ export default function AdminPage() {
     if (error) {
       console.error("Error fetching photos:", error)
     } else {
-      const photosWithUrls = (data || []).map(photo => ({
-        ...photo,
-        url: supabase.storage.from("wedding-photos").getPublicUrl(photo.storage_path).data.publicUrl
-      }))
+      // Fotograaf-foto's hebben hun eigen tabblad (FotograafBeheer).
+      const photosWithUrls = (data || [])
+        .filter(photo => photo.bron !== "fotograaf")
+        .map(photo => metUrls(supabase, photo as Photo & { storage_path: string }))
       setPhotos(photosWithUrls)
     }
   }
@@ -134,7 +143,9 @@ export default function AdminPage() {
       if (itemToDelete.type === "photo") {
         const photo = photos.find(p => p.id === itemToDelete.id)
         if (photo) {
-          await supabase.storage.from("wedding-photos").remove([photo.storage_path])
+          await supabase.storage
+            .from("wedding-photos")
+            .remove([photo.storage_path, photo.thumb_pad].filter((p): p is string => !!p))
           const { error } = await supabase.from("photos").delete().eq("id", itemToDelete.id)
           if (error) throw error
           toast.success("Foto verwijderd")
@@ -174,11 +185,48 @@ export default function AdminPage() {
     }
   }
 
-  const handleDownloadSelected = () => {
+  // Oudere gastfoto's hebben nog geen thumbnail: die maken we hier achteraf,
+  // zodat de galerij op telefoons niet honderden grote foto's hoeft te laden.
+  const [thumbVoortgang, setThumbVoortgang] = useState<{ klaar: number; totaal: number } | null>(null)
+  const zonderThumb = photos.filter(p => !p.thumb_pad && !isVideoItem(p))
+
+  const maakThumbnails = async () => {
+    const lijst = zonderThumb
+    if (lijst.length === 0) return
+    setThumbVoortgang({ klaar: 0, totaal: lijst.length })
+    let klaar = 0
+    let mislukt = 0
+    let volgende = 0
+    const werker = async () => {
+      while (volgende < lijst.length) {
+        const foto = lijst[volgende++]
+        try {
+          await maakThumbnail(foto)
+        } catch (e) {
+          console.error("Thumbnail mislukt", foto.storage_path, e)
+          mislukt++
+        }
+        klaar++
+        setThumbVoortgang({ klaar, totaal: lijst.length })
+      }
+    }
+    await Promise.all([werker(), werker(), werker()])
+    setThumbVoortgang(null)
+    if (mislukt > 0) toast.warning(`${lijst.length - mislukt} thumbnails gemaakt, ${mislukt} mislukt`)
+    else toast.success(`${lijst.length} thumbnails gemaakt — de galerij laadt nu veel sneller`)
+    fetchPhotos()
+  }
+
+  const handleDownloadSelected = async () => {
     const selectedPhotos = photos.filter(p => selectedIds.has(p.id))
-    selectedPhotos.forEach(photo => {
-      window.open(photo.url, '_blank')
-    })
+    toast.info(`${selectedPhotos.length} bestanden worden in een zip gezet…`)
+    try {
+      const mislukt = await downloadFotos(selectedPhotos)
+      if (mislukt > 0) toast.warning(`${mislukt} bestand(en) konden niet worden opgehaald`)
+    } catch (e) {
+      console.error("Download mislukt", e)
+      toast.error("Downloaden mislukt")
+    }
   }
 
   const toggleSelectId = (id: string) => {
@@ -226,6 +274,10 @@ export default function AdminPage() {
               <MonitorPlay className="w-4 h-4" />
               <span className="hidden sm:inline">Diavoorstelling</span>
             </Button>
+            <Button variant="outline" size="sm" onClick={() => router.push("/admin/kaartjes")} className="gap-2 bg-transparent">
+              <Printer className="w-4 h-4" />
+              <span className="hidden sm:inline">Kaartjes</span>
+            </Button>
             <Button variant="outline" size="sm" onClick={() => router.push("/admin/qr")} className="gap-2 bg-transparent">
               <QrCode className="w-4 h-4" />
               <span className="hidden sm:inline">QR-code</span>
@@ -240,7 +292,7 @@ export default function AdminPage() {
         <AppStatusSchakelaar />
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsList className="grid w-full grid-cols-5 mb-6">
             <TabsTrigger value="guests" className="gap-2">
               <ClipboardList className="w-4 h-4" />
               <span className="hidden sm:inline">Gastenlijst</span>
@@ -258,6 +310,10 @@ export default function AdminPage() {
               <span className="hidden sm:inline">Foto's</span>
               <span>({photos.length})</span>
             </TabsTrigger>
+            <TabsTrigger value="fotograaf" className="gap-2">
+              <Camera className="w-4 h-4" />
+              <span className="hidden sm:inline">Fotograaf</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="guests">
@@ -273,6 +329,20 @@ export default function AdminPage() {
           </TabsContent>
 
           <TabsContent value="photos">
+            {zonderThumb.length > 0 && (
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/50 p-3">
+                <p className="text-sm text-muted-foreground">
+                  {thumbVoortgang
+                    ? `Thumbnails maken… ${thumbVoortgang.klaar} van ${thumbVoortgang.totaal} (houd dit tabblad open)`
+                    : `${zonderThumb.length} foto's hebben nog geen kleine versie; daardoor laadt de galerij traag op telefoons.`}
+                </p>
+                <Button size="sm" onClick={maakThumbnails} disabled={thumbVoortgang !== null} className="gap-2">
+                  {thumbVoortgang ? <Loader2 className="w-4 h-4 animate-spin" /> : <Images className="w-4 h-4" />}
+                  Thumbnails maken
+                </Button>
+              </div>
+            )}
+
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <Button
                 variant={selectionMode ? "default" : "outline"}
@@ -315,6 +385,9 @@ export default function AdminPage() {
             />
           </TabsContent>
 
+          <TabsContent value="fotograaf">
+            <FotograafBeheer />
+          </TabsContent>
         </Tabs>
       </div>
 

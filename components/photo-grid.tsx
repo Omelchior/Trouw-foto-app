@@ -18,6 +18,8 @@ interface Photo {
   in_fotoboek?: boolean
   media_type?: string | null
   url?: string
+  /** Kleine versie voor het grid (fotograaf-foto's); anders `url`. */
+  thumb_url?: string
 }
 
 interface PhotoGridProps {
@@ -35,6 +37,13 @@ interface PhotoGridProps {
   currentUserId?: string
   /** Gast verwijdert een eigen foto (met bevestiging door de pagina). */
   onDeleteOwn?: (photo: Photo) => void
+  /**
+   * Compact "camerarol": meer foto's per rij, kleine tussenruimte en geen naam
+   * op de tegel (die staat in de lightbox). Voor de galerij op de telefoon.
+   */
+  compact?: boolean
+  /** Opdrachtnummer op de tegel (uit als de opdracht al als kop boven de foto's staat). */
+  toonOpdrachtBadge?: boolean
 }
 
 export function PhotoGrid({
@@ -49,6 +58,8 @@ export function PhotoGrid({
   toonFotoboek = false,
   currentUserId,
   onDeleteOwn,
+  compact = false,
+  toonOpdrachtBadge = true,
 }: PhotoGridProps) {
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({})
 
@@ -73,13 +84,18 @@ export function PhotoGrid({
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+    <div
+      className={cn(
+        "grid",
+        compact ? "grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1" : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3",
+      )}
+    >
       {photos.map((photo) => (
         <div
           key={photo.id}
           className={cn(
             "relative aspect-square group cursor-pointer",
-            selectionMode && selectedIds.has(photo.id) && "ring-4 ring-primary rounded-lg"
+            selectionMode && selectedIds.has(photo.id) && !compact && "ring-4 ring-primary rounded-lg"
           )}
           onClick={() => {
             if (selectionMode && onToggleSelect) {
@@ -94,7 +110,7 @@ export function PhotoGrid({
               {/* #t=0.1 dwingt browsers een echt beeldje te laten zien i.p.v. zwart */}
               <video
                 src={`${photo.url}#t=0.1`}
-                className="w-full h-full object-cover rounded-lg bg-secondary"
+                className={cn("w-full h-full object-cover bg-secondary", compact ? "rounded-md" : "rounded-lg")}
                 muted
                 playsInline
                 preload="metadata"
@@ -107,22 +123,24 @@ export function PhotoGrid({
             </>
           ) : (
             <img
-              src={photo.url || "/placeholder.svg"}
+              src={photo.thumb_url || photo.url || "/placeholder.svg"}
               alt={`Foto van ${photo.uploaded_by}`}
-              className="w-full h-full object-cover rounded-lg"
+              className={cn("w-full h-full object-cover bg-secondary", compact ? "rounded-md" : "rounded-lg")}
               loading="lazy"
             />
           )}
           
           {/* Overlay with uploader name (altijd zichtbaar; hover werkt niet op telefoons) */}
+          {!compact && (
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-foreground/60 to-transparent p-3 rounded-b-lg">
             <p className="text-sm text-primary-foreground font-medium truncate">
               {photo.uploaded_by}
             </p>
           </div>
+          )}
 
           {/* Opdracht-badge */}
-          {photo.challenge_id != null && !photo.is_selected && !selectionMode && (
+          {toonOpdrachtBadge && photo.challenge_id != null && !photo.is_selected && !selectionMode && (
             <div className="absolute top-2 left-2 text-[10px] sm:text-xs font-bold text-white bg-primary/90 rounded px-1.5 py-0.5">
               #{photo.challenge_id}
             </div>
@@ -150,6 +168,11 @@ export function PhotoGrid({
                 </button>
               )}
             </div>
+          )}
+
+          {/* Compact: gekozen foto's iets gedimd met een rand eroverheen */}
+          {compact && selectionMode && selectedIds.has(photo.id) && (
+            <div className="absolute inset-0 rounded-md bg-primary/20 ring-4 ring-inset ring-primary pointer-events-none" />
           )}
 
           {/* Selection indicator */}

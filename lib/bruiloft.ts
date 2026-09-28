@@ -32,6 +32,13 @@ export function effectiveOpen(modus: OpenModus, nu: number = Date.now()): boolea
   return nu >= APP_OPEN_MS
 }
 
+/**
+ * Kunnen gasten nog foto-opdrachten doen? Na de bruiloft staat dit uit: de
+ * opdrachten en de foto's ervan blijven te bekijken, maar er komen geen nieuwe
+ * opdracht-foto's meer bij. Zet op true om ze weer aan te zetten.
+ */
+export const OPDRACHTEN_OPEN = false
+
 /** Gastenpagina's die pas op de trouwdag opengaan (beheer mag altijd). */
 export const GESLOTEN_VOOR_TROUWDAG = [
   "/opdracht",

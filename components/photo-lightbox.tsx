@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { X, ChevronLeft, ChevronRight, Heart, Download, Target, Loader2 } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { X, ChevronLeft, ChevronRight, Heart, Download, Target, Loader2, Aperture } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { getChallenge } from "@/lib/guest"
+import { useOpdrachten } from "@/components/opdrachten-provider"
 import { downloadFoto } from "@/lib/foto-download"
-import { isVideoItem } from "@/lib/media"
+import { isFotograafItem, isVideoItem } from "@/lib/media"
 import { toast } from "sonner"
 
 interface Photo {
@@ -16,6 +16,7 @@ interface Photo {
   is_selected: boolean
   challenge_id?: number | null
   media_type?: string | null
+  bron?: string | null
   url?: string
 }
 
@@ -26,9 +27,17 @@ interface PhotoLightboxProps {
   onNavigate: (photo: Photo) => void
 }
 
+/** Minimale veegafstand (px) om naar de vorige/volgende foto te gaan. */
+const SWIPE_PX = 50
+
 export function PhotoLightbox({ photo, photos, onClose, onNavigate }: PhotoLightboxProps) {
   const currentIndex = photo ? photos.findIndex(p => p.id === photo.id) : -1
   const [downloading, setDownloading] = useState(false)
+  const opdrachten = useOpdrachten()
+  const touchStart = useRef<{ x: number; y: number } | null>(null)
+
+  const vorige = currentIndex > 0 ? photos[currentIndex - 1] : null
+  const volgende = currentIndex >= 0 && currentIndex < photos.length - 1 ? photos[currentIndex + 1] : null
 
   const handleDownload = async () => {
     if (!photo || downloading) return
@@ -47,13 +56,9 @@ export function PhotoLightbox({ photo, photos, onClose, onNavigate }: PhotoLight
     if (!photo) return
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose()
-      } else if (e.key === "ArrowLeft" && currentIndex > 0) {
-        onNavigate(photos[currentIndex - 1])
-      } else if (e.key === "ArrowRight" && currentIndex < photos.length - 1) {
-        onNavigate(photos[currentIndex + 1])
-      }
+      if (e.key === "Escape") onClose()
+      else if (e.key === "ArrowLeft" && vorige) onNavigate(vorige)
+      else if (e.key === "ArrowRight" && volgende) onNavigate(volgende)
     }
 
     document.addEventListener("keydown", handleKeyDown)
@@ -63,76 +68,121 @@ export function PhotoLightbox({ photo, photos, onClose, onNavigate }: PhotoLight
       document.removeEventListener("keydown", handleKeyDown)
       document.body.style.overflow = ""
     }
-  }, [photo, photos, currentIndex, onClose, onNavigate])
+  }, [photo, vorige, volgende, onClose, onNavigate])
 
   if (!photo) return null
 
-  const opdracht = photo.challenge_id != null ? getChallenge(photo.challenge_id) : null
+  const video = isVideoItem(photo)
+  const opdrachtTekst =
+    photo.challenge_id != null
+      ? (opdrachten.find(c => c.id === photo.challenge_id)?.text ?? `Opdracht ${photo.challenge_id}`)
+      : null
+
+  // Vegen op de telefoon: links = volgende, rechts = vorige, omlaag = sluiten.
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0]
+    touchStart.current = { x: t.clientX, y: t.clientY }
+  }
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const start = touchStart.current
+    touchStart.current = null
+    if (!start) return
+    const t = e.changedTouches[0]
+    const dx = t.clientX - start.x
+    const dy = t.clientY - start.y
+    if (Math.abs(dx) > SWIPE_PX && Math.abs(dx) > Math.abs(dy)) {
+      if (dx < 0 && volgende) onNavigate(volgende)
+      else if (dx > 0 && vorige) onNavigate(vorige)
+    } else if (dy > SWIPE_PX * 2 && Math.abs(dy) > Math.abs(dx)) {
+      onClose()
+    }
+  }
 
   return (
-    <div className="fixed inset-0 z-50 bg-foreground/95 flex items-center justify-center">
-      {/* Close button */}
-      <Button
-        size="icon"
-        variant="ghost"
-        className="absolute top-4 right-4 text-primary-foreground hover:bg-card/20 z-10"
-        onClick={onClose}
-      >
-        <X className="w-6 h-6" />
-      </Button>
-
-      {/* Navigation buttons */}
-      {currentIndex > 0 && (
+    <div
+      className="fixed inset-0 z-[60] bg-black flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      onTouchStart={video ? undefined : onTouchStart}
+      onTouchEnd={video ? undefined : onTouchEnd}
+    >
+      {/* Bovenbalk: teller + sluiten */}
+      <div className="absolute top-0 inset-x-0 z-10 flex items-center justify-between px-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+        <span className="text-sm text-white/70 tabular-nums pl-2">
+          {currentIndex + 1} / {photos.length}
+        </span>
         <Button
           size="icon"
           variant="ghost"
-          className="absolute left-4 text-primary-foreground hover:bg-card/20"
-          onClick={() => onNavigate(photos[currentIndex - 1])}
+          className="text-white hover:bg-white/20 rounded-full"
+          onClick={onClose}
+          aria-label="Sluiten"
+        >
+          <X className="w-6 h-6" />
+        </Button>
+      </div>
+
+      {/* Pijltjes (desktop; op de telefoon veeg je) */}
+      {vorige && (
+        <Button
+          size="icon"
+          variant="ghost"
+          className="hidden sm:flex absolute left-4 z-10 text-white hover:bg-white/20 rounded-full"
+          onClick={() => onNavigate(vorige)}
+          aria-label="Vorige"
         >
           <ChevronLeft className="w-8 h-8" />
         </Button>
       )}
-      {currentIndex < photos.length - 1 && (
+      {volgende && (
         <Button
           size="icon"
           variant="ghost"
-          className="absolute right-4 text-primary-foreground hover:bg-card/20"
-          onClick={() => onNavigate(photos[currentIndex + 1])}
+          className="hidden sm:flex absolute right-4 z-10 text-white hover:bg-white/20 rounded-full"
+          onClick={() => onNavigate(volgende)}
+          aria-label="Volgende"
         >
           <ChevronRight className="w-8 h-8" />
         </Button>
       )}
 
       {/* Foto of video */}
-      <div className="max-w-full max-h-full p-4">
-        {isVideoItem(photo) ? (
+      <div className="w-full h-full flex items-center justify-center px-2 sm:px-16 pt-14 pb-32">
+        {video ? (
           <video
             key={photo.id}
             src={photo.url}
-            className="max-w-full max-h-[80vh] rounded-lg bg-black"
+            className="max-w-full max-h-full rounded-lg bg-black"
             controls
             autoPlay
             playsInline
           />
         ) : (
           <img
+            key={photo.id}
             src={photo.url || "/placeholder.svg"}
             alt={`Foto van ${photo.uploaded_by}`}
-            className="max-w-full max-h-[80vh] object-contain rounded-lg"
+            className="max-w-full max-h-full object-contain rounded-lg select-none"
+            draggable={false}
           />
         )}
       </div>
 
-      {/* Info bar */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-foreground/80 to-transparent">
-        <div className="max-w-lg mx-auto flex items-center justify-between">
-          <div className="min-w-0 pr-3">
-            <p className="text-primary-foreground font-medium">{photo.uploaded_by}</p>
-            {opdracht && (
-              <span className="inline-flex items-center gap-1 text-sm text-primary-foreground/80">
-                <Target className="w-3 h-3 shrink-0" />
-                <span className="truncate">Opdracht #{opdracht.id}: {opdracht.text}</span>
-              </span>
+      {/* Onderbalk: wie, welke opdracht, downloaden */}
+      <div className="absolute bottom-0 inset-x-0 px-4 pt-6 pb-[max(1rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-black/80 to-transparent">
+        <div className="max-w-lg mx-auto flex items-end justify-between gap-3">
+          <div className="min-w-0 space-y-0.5">
+            <p className="flex items-center gap-1.5 text-white font-medium">
+              {isFotograafItem(photo) && <Aperture className="w-4 h-4 shrink-0" />}
+              <span className="truncate">{photo.uploaded_by}</span>
+            </p>
+            {opdrachtTekst && (
+              <p className="flex items-start gap-1 text-sm text-white/80 leading-snug">
+                <Target className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                <span className="line-clamp-3">
+                  #{photo.challenge_id}: {opdrachtTekst}
+                </span>
+              </p>
             )}
             {photo.is_selected && (
               <span className="inline-flex items-center gap-1 text-sm text-accent">
@@ -144,7 +194,7 @@ export function PhotoLightbox({ photo, photos, onClose, onNavigate }: PhotoLight
           <Button
             size="sm"
             variant="secondary"
-            className="gap-2"
+            className="gap-2 shrink-0"
             onClick={handleDownload}
             disabled={downloading}
           >

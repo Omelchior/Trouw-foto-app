@@ -2,13 +2,14 @@
 
 import { Suspense, useState, useEffect } from "react"
 import Link from "next/link"
-import { Heart, Shield, Target, Images, Info, Lock, Clock, ChevronRight, MapPin, Shirt, Gift } from "lucide-react"
+import { Heart, Shield, Target, Images, Lock, Clock, ChevronRight, MapPin, Shirt, Gift, MonitorPlay } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { OpdrachtCarousel, type OpdrachtFoto } from "@/components/opdracht-carousel"
 import { Navigation } from "@/components/navigation"
 import { LogoutButton } from "@/components/logout-button"
 import { AuthErrorHandler } from "@/components/auth-error-handler"
 import { WelcomeScreen } from "@/components/welcome-screen"
+import { FotoUitnodiging } from "@/components/foto-uitnodiging"
 import {
   getGuestSession,
   getMijnAanwezigheid,
@@ -21,6 +22,7 @@ import {
   APP_OPEN_TEKST,
   effectiveOpen,
   countdownTekst,
+  OPDRACHTEN_OPEN,
 } from "@/lib/bruiloft"
 import { useOpenModus } from "@/lib/app-status"
 import { startTijdmachine } from "@/lib/tijdmachine"
@@ -28,10 +30,12 @@ import { startTijdmachine } from "@/lib/tijdmachine"
 // Lokaal de trouwdag bekijken met ?nu=...; in productie gebeurt er niets.
 startTijdmachine()
 
+// Tijdens de bruiloft (opdrachten open). Daarna toont de homepage
+// FotoUitnodiging; de infopagina is dan niet meer nodig.
 const SNELKOPPELINGEN = [
   { href: "/opdracht", label: "Opdrachten", omschrijving: "Ga op fotomissie", icon: Target },
   { href: "/selectie", label: "Galerij", omschrijving: "Alle foto's", icon: Images },
-  { href: "/info", label: "Info", omschrijving: "Programma & meer", icon: Info },
+  { href: "/diavoorstelling", label: "Diavoorstelling", omschrijving: "Leun achterover", icon: MonitorPlay },
 ]
 
 /** Voorproefje van de infopagina op het vergrendelde startscherm. */
@@ -140,6 +144,9 @@ export default function HomePage() {
   const open = gastenOpen || session.is_privileged
   const forcedDicht = modus === "dicht"
 
+  // Na de bruiloft (opdrachten dicht) krijgt de homepage een eigen, compacte opzet.
+  const naBruiloft = open && !OPDRACHTEN_OPEN
+
   // Een opdracht geldt als voltooid zolang er ook echt een foto voor is.
   const voltooid = session.completed_challenges.filter((id) => photosByChallenge[id])
 
@@ -168,6 +175,23 @@ export default function HomePage() {
         <LogoutButton />
       </div>
 
+      {naBruiloft ? (
+        /* Na de bruiloft: korte kop, zodat alles wat je kunt doen (delen,
+           bekijken, diavoorstelling) zonder scrollen in beeld staat. */
+        <div className="max-w-lg mx-auto px-4 pt-16 pb-6 space-y-4">
+          <header className="text-center">
+            <h1 className="font-serif text-2xl font-bold text-foreground">
+              Hé {session.name.split(" ")[0]}! 👋
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Bedankt dat je erbij was bij{" "}
+              <span className="font-medium text-primary">Olaf &amp; Ester</span>. Samen maken we er
+              een prachtig album van.
+            </p>
+          </header>
+          <FotoUitnodiging userId={session.user_id} />
+        </div>
+      ) : (
       <div className="max-w-lg mx-auto px-4 py-8 space-y-8">
         <header className="text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
@@ -301,6 +325,7 @@ export default function HomePage() {
           </>
         )}
       </div>
+      )}
 
       <Navigation />
     </main>

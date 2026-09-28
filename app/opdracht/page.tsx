@@ -13,6 +13,7 @@ import {
 } from "@/lib/guest"
 import { useOpdrachten } from "@/components/opdrachten-provider"
 import { createClient } from "@/lib/supabase/client"
+import { OPDRACHTEN_OPEN } from "@/lib/bruiloft"
 
 export default function OpdrachtPage() {
   const [session, setSession] = useState<GuestSession | null | "loading">("loading")
@@ -140,8 +141,18 @@ export default function OpdrachtPage() {
             Foto-opdrachten
           </h1>
           <p className="text-muted-foreground text-sm">
-            Upload één foto per opdracht en ga daarna voor de volgende.
-            Swipe naar links om je eerdere foto&apos;s terug te zien.
+            {OPDRACHTEN_OPEN ? (
+              <>
+                Upload één foto per opdracht en ga daarna voor de volgende.
+                Swipe naar links om je eerdere foto&apos;s terug te zien.
+              </>
+            ) : (
+              <>
+                De opdrachten zijn afgelopen. Swipe naar links om jouw
+                opdracht-foto&apos;s terug te zien; die van iedereen staan in de
+                galerij onder Opdrachten.
+              </>
+            )}
           </p>
           <div className="mt-3 inline-flex items-center gap-2 text-sm">
             <Heart className="w-4 h-4 text-primary fill-primary/30" />

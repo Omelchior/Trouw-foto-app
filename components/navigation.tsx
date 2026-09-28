@@ -3,17 +3,19 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Target, Images, Info, Home, Shield } from "lucide-react"
+import { Target, Images, Info, Home, Shield, MonitorPlay } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { effectiveOpen } from "@/lib/bruiloft"
+import { effectiveOpen, OPDRACHTEN_OPEN } from "@/lib/bruiloft"
 import { useOpenModus } from "@/lib/app-status"
 import { getGuestSession, heeftBeheerToegang } from "@/lib/guest"
 
 const openItems = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/opdracht", label: "Opdrachten", icon: Target },
+  // Na de bruiloft staan de opdracht-foto's in de galerij (tabblad Opdrachten).
+  ...(OPDRACHTEN_OPEN ? [{ href: "/opdracht", label: "Opdrachten", icon: Target }] : []),
   { href: "/selectie", label: "Galerij", icon: Images },
-  { href: "/info", label: "Info", icon: Info },
+  // Info (programma, route, dresscode) is na de bruiloft niet meer nodig.
+  { href: "/diavoorstelling", label: "Dia's", icon: MonitorPlay },
 ]
 
 // Vóór de trouwdag is alleen de info te zien.
